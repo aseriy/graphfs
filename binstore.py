@@ -5,19 +5,36 @@ import click
 import dumper
 dumper.max_depth = 10
 import hashlib
+import re
 
 
 class BinaryStore():
-
     def __init__(self, bin_store_dir):
         self.bin_store_dir = bin_store_dir
+        self.validator = re.compile('[0-9a-f]+')
 
+    def is_valid_hex(self, sum):
+        retval = True
+
+        if len(sum) == 64:
+            m = self.validator.match(sum)
+            s,l =  m.span()
+            if not (s == 0 and l == 64):
+                retval = False
+        else:
+            retval = False
+
+        return retval
 
     def hex_to_path(self, sum):
         chunks, chunk_size = len(sum), 4
         store_path_list = [sum[i:i+chunk_size] for i in range(0, chunks, chunk_size)]
         store_path = os.path.join(self.bin_store_dir, *store_path_list)
         return store_path
+
+
+    def path_to_hex(self, path):
+        return ('').join(path.split('binstore')[1].split('/')[1:])
 
 
     def buffer_to_path(self, buf):
