@@ -4,35 +4,6 @@ from binstore import BinaryStore
 
 bin_store_dir = 'binstore'
 
-    # app = Flask(__name__)
-    # api = Api(app)
-    #
-    # class HelloWorld(Resource):
-    #     def get(self):
-    #         return {"text": "Hellow World!"}
-    #
-    #
-    # class Blob(Resource):
-    #     def __init__(self):
-    #         self.bs = BinaryStore(bin_store_dir)
-    #
-    #     def get(self, sha256):
-    #         json_resp = {
-    #             "sha256": sha256,
-    #             "valid": self.bs.is_valid_hex(sha256)
-    #         }
-    #         return json_resp
-    #
-    #
-    # api.add_resource(HelloWorld, '/')
-    # api.add_resource(Blob, '/<string:sha256>')
-    #
-    #
-    # if __name__ == '__main__':
-    #     app.run(host='172.28.128.11', debug=True)
-    #
-
-
 from aiohttp import web
 import json
 
