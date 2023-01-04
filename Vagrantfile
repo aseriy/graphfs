@@ -196,7 +196,7 @@ Vagrant.configure("2") do |config|
         curl --location --request POST http://neo4j:neo4j@${HOST_IP}:7474/user/neo4j/password \
           --header 'Accept: application/json; charset=UTF-8' \
           --header 'Content-Type: application/json' \
-          --data-raw '{"password" : "capgemini"}'
+          --data-raw '{"password" : "binstore"}'
     SHELL
 
   end
