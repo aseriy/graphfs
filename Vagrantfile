@@ -91,20 +91,20 @@ Vagrant.configure("2") do |config|
     tsg.vm.provision "pkg-update", type: "shell", run: "once",
                             privileged: true, inline: <<-SHELL
         apt-get update
-        apt-get install -y net-tools git
+        apt-get install -y net-tools git libmagic1
     SHELL
 
     tsg.vm.provision "python-env", type: "shell", run: "once",
                             privileged: true, inline: <<-SHELL
         apt-get install -y python3-dev python3-pip
         apt-get install -y libcurl4-openssl-dev libssl-dev
-        apt-get install -y cmake libsm6 libxrender1 libxext6
+        apt-get install -y cmake libsm6 libxrender1 libxext6 \
+                  libatk1.0-0 libatk-bridge2.0-0 libcups2 libxkbcommon-x11-0 libxdamage1 libxcomposite-dev \
+                  libxrandr2 libgbm-dev libpangocairo-1.0-0
         pip3 install pytest
         pip3 install neo4j==1.7.6
         pip3 install numpy pandas unidecode nltk pyyaml dumper
-        pip3 install Keras tensorflow
         pip3 install jinja2
-        pip3 install boto3
         pip3 install numpy
         pip3 install pandas
         pip3 install more_itertools
@@ -116,6 +116,8 @@ Vagrant.configure("2") do |config|
         pip3 install --upgrade chardet
         pip3 install matplotlib
         pip3 install --upgrade requests
+        pip3 install detools python-magic
+        pip3 install pymango dnspython
         SHELL
 
     tsg.vm.provision "configure-pythonpath", type: "shell", env: {"PYTHONPATH"=>ENV['PYTHONPATH']}, inline: <<-SHELL
@@ -131,6 +133,26 @@ Vagrant.configure("2") do |config|
         echo "session required pam_limits.so" >> /etc/pam.d/common-session
         echo "session required pam_limits.so" >> /etc/pam.d/common-session-noninteractive
     SHELL
+
+    tsg.vm.provision "nodejs", type: "shell", run: "once",
+                            privileged: true, inline: <<-SHELL
+        cd /tmp
+        curl -sL https://deb.nodesource.com/setup_current.x | bash -
+        apt-get install -y nodejs
+        npm upgrade npm
+    SHELL
+
+
+    tsg.vm.provision "mongodb", type: "shell", run: "once",
+                            privileged: true, inline: <<-SHELL
+        cd /tmp
+        wget https://repo.mongodb.org/apt/ubuntu/dists/focal/mongodb-org/6.0/multiverse/binary-amd64/mongodb-org-server_6.0.6_amd64.deb
+        wget https://downloads.mongodb.com/compass/mongodb-mongosh-shared-openssl11_1.9.1_amd64.deb
+        dpkg -i mongodb-org-server_6.0.6_amd64.deb
+        dpkg -i mongodb-mongosh-shared-openssl11_1.9.1_amd64.deb
+        systemctl start mongod
+    SHELL
+
 
     tsg.vm.provision "docker", type: "shell", run: "once",
                             privileged: true, inline: <<-SHELL

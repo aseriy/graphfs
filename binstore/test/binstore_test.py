@@ -3,14 +3,14 @@ from binstore import BinaryStore
 import os
 import numpy as np
 from util.neo4j_helpers import get_credentials, get_node_ids_by_label_name
-import detools
+from itertools import combinations
 
 
 
 creds = get_credentials('etc', 'config.yml')
 
-file_to_store = os.path.expanduser('~/Download/jdk-8u231-linux-x64.tar.gz')
-test_blobs_dir = 'testdata/blobs'
+# file_to_store = os.path.expanduser('~/Download/jdk-8u231-linux-x64.tar.gz')
+test_blobs_dir = 'testdata'
 bs = BinaryStore(creds)
 
 
@@ -43,9 +43,15 @@ class TestBinaryStore:
             1 == len(bs.list_file_nodes().get('nodes'))
 
 
+    def test_put_file(self):
+        file_to_store = os.path.join(test_blobs_dir, '000000')
+        sum = bs.put_file(file_to_store)
+        assert '962cf3c071da5682136d2dfa17a9f3421c8df620e0591e43e4a338d09c59b28e' == sum
+
+
     def test_list_file_nodes(self, wipe_out, load_graph):
         json_resp = bs.list_file_nodes()
-        assert 91 == len(json_resp['nodes'])
+        assert 126 == len(json_resp['nodes'])
 
     def test_real_file_signature(self, load_graph):
         signature = bs.put_file(file_to_store)
@@ -59,12 +65,6 @@ class TestBinaryStore:
 
     def test_get_meta(self, load_graph):
         print (bs.get_meta('a99419c2f09c1a47cb053bb927756f9c27e3889be5b6c9e559f0f3606c9d2623'))
-
-
-    def test_put_file(self, load_graph):
-        file_to_store = os.path.join(test_blobs_dir, '000000')
-        sum = bs.put_file(file_to_store)
-        assert '962cf3c071da5682136d2dfa17a9f3421c8df620e0591e43e4a338d09c59b28e' == sum
 
 
     def test_containerize_node_1(self, load_graph):
@@ -92,14 +92,6 @@ class TestBinaryStore:
         assert 414 == actual
 
 
-    def test_containerize_node_4(self, load_graph):
-        # testdata/blobs/000047 (2.8M)
-        node_sha256 = '805fe66f89917643beaa249217a97e1a6d07c9bbe28f487bf5720c8d42c3c724'
-        node = bs.containerize_node(node_sha256)
-        actual = bs.get_meta(node.get('sha256')).get('containers')
-        assert 2820 == actual
-
-
     def test_cache_file_node(self, load_graph):
         node_sha256 = 'fac71a62bc0d85bd5d11c2ad6137a12d5bdc326eda227f64d5092a4a05f5186b'
         node = bs.containerize_node(node_sha256)
@@ -108,29 +100,55 @@ class TestBinaryStore:
 
 
     def test_housekeep_containerize_dry(self, load_graph):
-        assert 179 == len(bs.housekeep_containerize())
+        assert 126 == len(bs.housekeep_containerize())
 
     def test_housekeep_containerize_1(self, load_graph):
         assert 1 == len(bs.housekeep_containerize(1))
-
 
     def test_housekeep_containerize_all(self, load_graph):
         bs.housekeep_containerize(-1)
 
 
 
-    def test_create_patch(self):
-        ffrom_perma_path = os.path.join("../Data/test/perma", bs.hex_to_path("5d61e6b7cb7357ea2adc709c93815bef4b9705d13d21775ca67de34a50d0ab7c"))
-        fto_perma_path = os.path.join("../Data/test/perma", bs.hex_to_path("92eccce9230a04031a08d718a95658152aa2c983275beaefa5d54265ca39f718"))
-        ffrom = open(ffrom_perma_path, 'rb')
-        fto = open(fto_perma_path, 'rb')
-        fpatch = open('foo3.patch', 'wb')
-        detools.create_patch(ffrom, fto, fpatch)
+    def test_qualify_container_delta(self):
+        c_list = (
+            "a304aa8bba0aa9fccb6c82568e07c101d533faf2ec5c525a9403dbb9d912e0a0",
+            "9af169284e5191928423c1f23946f3512238b205c670d886fa64a622b06671d7",
+            "2246016971b057f0f587d220e9be6c2d013bdeb7f28f86d93b1dd95adf48188f",
+            "6ec87382dd072f44850c3084b4228e6529cd361f8363e30004a7a66f6fd014c3",
+            "29b85d66a3fa084ff08722a0ee78c41bcdfb99b996cecb6bd547b2dd0a45f924",
+            "7253f30a018deb7c81ff098d239ccd05cdcab0759cef102b8a9e3a0a64441418"
+        )
+        for c in combinations(c_list, 2):
+            print(c[0], c[1])
+            bs.qualify_container_delta(c[0], c[1])
 
 
-    # This is always the last test
-    # def test_wipe_out_0(self, load_graph):
-    #     print(bs.wipe_out(17))
-    #     assert 0 == len(bs.list_file_nodes().get('nodes'))
+
+    def test_qualify_container_delta_1(self):
+        c1 = "d2750f3dc96e337e58951205471f27c417825d6ef8986baf4970028fc06ce5d3"
+        c2 = "a6b25afc4a25595bc8fda2307896dee9f8dc7523d28b607d2b949195418a21f2"
+        print(bs.qualify_container_delta(c1, c2))
 
 
+
+
+    def test_deltalize_container(self):
+        print(bs.deltalize_container("ada0280da9ffaf9da0212cb56411677bc9bb8469e8305fcd76525e4a4b779624"))
+
+
+
+    def test_housekeep_deltalize_dry(self):
+        print(bs.housekeep_deltalize())
+
+
+    def test_housekeep_deltalize_one(self):
+        print(bs.housekeep_deltalize(1))
+
+
+    def test_housekeep_deltalize_ten(self):
+        print(bs.housekeep_deltalize(10))
+
+
+    # TODO: Test of containers of zero bytes or very few bytes that may result in 
+    # the ratio where division by zero may need to be handled.

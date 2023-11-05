@@ -8,6 +8,8 @@ import re
 import magic
 from neo4j import GraphDatabase
 from util.neo4j_helpers import get_credentials, get_node_ids_by_label_name
+import detools
+import io
 
 
 store_perma_dir = 'perma'
@@ -16,12 +18,16 @@ store_cache_dir = 'cache'
 # This is temporarily here, should be moved to a config file at some point
 # store container size set to 1k
 container_size = 1024
+DEFAULT_BATCH_SIZE = 5000
 
 
 #
 # CREATE INDEX ON:FileNode(sha256)
 # CREATE INDEX ON:Container(sha256)
 # CREATE INDEX ON:Container(sha256)
+# CREATE INDEX ON:MUTATED(patch_to_ratio)
+# CREATE INDEX ON:MUTATED(diff_extra_ratio)
+# CREATE INDEX ON:MUTATED(size_data_ratio)
 #
 
 class BinaryStore():
@@ -64,7 +70,7 @@ class BinaryStore():
     # THIS IS DANGEROUS!!!
     # WIPES OUT THE ENTIRE GRAPH
     # USE WITH EXTREME CAUTION
-    def wipe_out(self, delete_batch_size = 1000):
+    def wipe_out(self, delete_batch_size = DEFAULT_BATCH_SIZE):
         total_deleted = 0
         delete_count = delete_batch_size
 
@@ -313,6 +319,35 @@ class BinaryStore():
         return candidates
 
 
+    def housekeep_deltalize(self, count = 0):
+        candidates = []
+
+        with self.graph.session() as s:
+            q = '''
+                MATCH (c:Container) WHERE c.size<=$container_size AND c.deltalized IS NULL
+                RETURN c.sha256 AS c
+                '''
+            
+            print(q)
+            result = s.run(q, container_size = container_size)
+            candidates = [r.get('c') for r in result]
+            s.close()
+        
+        # if we're in a dry run, we're done.
+        # Otherwise, (re-)containerize each node
+        if count > 0:
+            candidates = candidates[:count]
+        
+        if count > 0 or count == -1:
+            for c in candidates:
+                print("Deltalizing {}".format(c))
+                self.deltalize_container(c)
+
+
+        return candidates
+
+
+
 
     def list_file_nodes(self):
         nl = []
@@ -329,3 +364,176 @@ class BinaryStore():
             s.close()
 
         return {'nodes': nl}
+
+
+    def deltalize_container(self, container_sig):
+        # Check if the FileNode has been deltalized already.
+        # If so, return without doing anything.
+        previously_deltalized = False
+        with self.graph.session() as s:
+            q = '''
+                MATCH (c1:Container {sha256: $sha256}) WHERE c1.deltalized
+                RETURN c1
+                '''
+
+            print(q)
+            result = s.run(q, sha256 = container_sig)
+            if result.peek() is not None:
+                previously_deltalized = True
+
+            s.close()
+
+        if previously_deltalized:
+            return True
+
+
+        processed_count = DEFAULT_BATCH_SIZE
+
+        while processed_count > 0:
+            mutations = []
+            no_mutations = []
+
+            with self.graph.session() as s:
+                q = '''
+                    MATCH (c1:Container {sha256: $sha256})
+                    MATCH (c2:Container) WHERE c2.sha256 <> $sha256 AND
+                    c2.size<=$container_size AND c1<>c2 AND 
+                    NOT ((c1)-[:MUTATED]->(c2) OR c2.delta_progress IS NOT NULL)
+                    WITH c1.sha256 AS c1, c2.sha256 AS c2 LIMIT $limit
+                    RETURN c1, COLLECT(c2) AS c2, COUNT(c2) AS n
+                    '''
+
+                print(q)
+                result = s.run(q, sha256 = container_sig, container_size = container_size, limit = DEFAULT_BATCH_SIZE)
+                if result.peek() is not None:
+                    r = result.single()
+                    if r.get("n") > 0:
+                        c1 = r.get("c1")
+                        c2_list = r.get("c2")
+                        processed_count = r.get("n")
+                        print (processed_count)
+                        for c2 in c2_list:
+                            print(c1, c2)
+                            delta_bytes = self.qualify_container_delta(c1, c2)
+                            if delta_bytes is None:
+                                no_mutations.append({\
+                                    "sha256": c2
+                                })
+                            else:
+                                mutations.append({ \
+                                    "sha256": c2,
+                                    "delta": delta_bytes
+                                })
+                else:
+                    processed_count = 0
+
+                s.close()
+                return
+
+
+            if len(mutations):
+                with self.graph.session() as s:
+                    q = '''
+                        MATCH (c1:Container {sha256: $sha256})
+                        WITH c1, $mutations AS mutations
+                        UNWIND mutations AS mutation
+                        MATCH (c2:Container {sha256: mutation.sha256})
+                        MERGE (c1)-[m:MUTATED]->(c2)
+                        SET m.delta = mutation.delta
+                        RETURN m
+                        '''
+                    
+                    print(q)
+                    result = s.run(q, sha256 = container_sig, mutations = mutations)
+                    print (result.peek())
+                    # r = result.single()
+
+            if len(no_mutations):
+                with self.graph.session() as s:
+                    q = '''
+                        WITH $no_mutations AS no_mutations
+                        UNWIND no_mutations AS no_mutation
+                        MATCH (c2:Container {sha256: no_mutation.sha256})
+                        SET c2.delta_progress = $sha256
+                        RETURN c2
+                        '''
+                    
+                    print(q)
+                    result = s.run(q, sha256 = container_sig, no_mutations = no_mutations)
+                    print (result.peek())
+                    # r = result.single()
+
+
+        # If no more mutation pairs left, mark the Container node as "deltalized"
+        with self.graph.session() as s:
+            q = '''
+                MATCH (c1:Container {sha256: $sha256})
+                MATCH (c2:Container) WHERE c2.delta_progress IS NOT NULL
+                SET c1.deltalized = TRUE,
+                c2.delta_grpgress = NULL
+                RETURN c1, c2
+                '''
+
+            print(q)
+            result = s.run(q, sha256 = container_sig)
+            print(result.peek())
+            s.close()
+
+
+        return True
+
+
+    
+    def qualify_container_delta(self, c1, c2):
+        max_patch_to_ratio = 0.1
+        buffer = None
+
+        c1_path = os.path.join(self.bin_store_perma_dir, self.hex_to_path(c1))
+        c2_path = os.path.join(self.bin_store_perma_dir, self.hex_to_path(c2))
+        # print(c1_path)
+        # print(c2_path)
+
+        fc1 = open(c1_path, 'rb')
+        fc2 = open(c2_path, 'rb')
+
+        fdelta = io.BufferedRandom(io.BytesIO())
+        detools.create_patch(fc1, fc2, fdelta)
+        fdelta.seek(0)
+        delta_info = detools.patch_info(fdelta)
+        # print(delta_info)
+        # ('sequential', (1044, 'lzma', None, 0, None, None, 1024, [0, 9, 26, 10], [46, 0, 1, 932], [939, 1, 0, -159], 15.0))
+        (patch_size, compression, compression_info, dfpatch_size, data_format, dfpatch_info, to_size, \
+            diff_sizes, extra_sizes, adjustment_sizes, number_of_size_bytes) = delta_info[1]
+
+        if to_size > 0 and patch_size / to_size <= max_patch_to_ratio:
+            fdelta.seek(0)
+            buffer = fdelta.read()
+
+        return buffer
+
+
+# ('sequential', (
+# patch_size            1044                    Patch size:         1.02 KiB
+# compression           'lzma'
+# compression_info      None
+# dfpatch_size          0
+# data_format           None
+# dfpatch_info          None 
+# to_size               1024                    To size:            1 KiB
+# diff_sizes            [0, 9, 26, 10]
+# extra_sizes           [46, 0, 1, 932]
+# adjustment_sizes      [939, 1, 0, -159]
+# number_of_size_bytes  15.0
+
+
+# Patch/to ratio:     (patch_size / to_size) (lower is better)
+# Diff/extra ratio:   (number_of_diff_bytes / number_of_extra_bytes) (higher is better)
+# Size/data ratio:    (number_of_size_bytes / number_of_data_bytes) (lower is better)
+
+#     number_of_diff_bytes = sum(diff_sizes)
+#     number_of_extra_bytes = sum(extra_sizes)
+#     number_of_data_bytes = (number_of_diff_bytes + number_of_extra_bytes)
+#     size_data_ratio = _format_ratio(number_of_size_bytes, number_of_data_bytes)
+#     patch_to_ratio = _format_ratio(patch_size, to_size)
+#     diff_extra_ratio = _format_ratio(number_of_diff_bytes, number_of_extra_bytes)
+#     compression = _format_compression(compression, compression_info)
