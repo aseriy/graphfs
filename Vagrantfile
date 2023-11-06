@@ -30,8 +30,8 @@ Vagrant.configure("2") do |config|
     tsg.vm.synced_folder ".", "/vagrant", disabled: true
     tsg.vm.synced_folder download_dir, "/home/vagrant/" + download_dir, disabled: false
     tsg.vm.synced_folder binstore_dir, "/home/vagrant/" + binstore_dir, disabled: false
-    tsg.vm.synced_folder data_dir, "/home/vagrant/" + data_dir, disabled: false
-    tsg.vm.synced_folder etc_dir, "/home/vagrant/" + etc_dir, disabled: false
+    tsg.vm.synced_folder data_dir,     "/home/vagrant/" + data_dir, disabled: false
+    tsg.vm.synced_folder etc_dir,      "/home/vagrant/" + etc_dir, disabled: false
 
     tsg.vm.provider "virtualbox" do |vb|
       vb.gui = false
