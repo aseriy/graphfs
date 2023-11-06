@@ -25,3 +25,5 @@ __pycache__
 .ipynb_checkpoints
 
 *.egg-info/
+
+neo4j-data/

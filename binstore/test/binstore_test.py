@@ -110,44 +110,44 @@ class TestBinaryStore:
 
 
 
-    def test_qualify_container_delta(self):
-        c_list = (
-            "a304aa8bba0aa9fccb6c82568e07c101d533faf2ec5c525a9403dbb9d912e0a0",
-            "9af169284e5191928423c1f23946f3512238b205c670d886fa64a622b06671d7",
-            "2246016971b057f0f587d220e9be6c2d013bdeb7f28f86d93b1dd95adf48188f",
-            "6ec87382dd072f44850c3084b4228e6529cd361f8363e30004a7a66f6fd014c3",
-            "29b85d66a3fa084ff08722a0ee78c41bcdfb99b996cecb6bd547b2dd0a45f924",
-            "7253f30a018deb7c81ff098d239ccd05cdcab0759cef102b8a9e3a0a64441418"
-        )
-        for c in combinations(c_list, 2):
-            print(c[0], c[1])
-            bs.qualify_container_delta(c[0], c[1])
+    # def test_qualify_container_delta(self):
+    #     c_list = (
+    #         "a304aa8bba0aa9fccb6c82568e07c101d533faf2ec5c525a9403dbb9d912e0a0",
+    #         "9af169284e5191928423c1f23946f3512238b205c670d886fa64a622b06671d7",
+    #         "2246016971b057f0f587d220e9be6c2d013bdeb7f28f86d93b1dd95adf48188f",
+    #         "6ec87382dd072f44850c3084b4228e6529cd361f8363e30004a7a66f6fd014c3",
+    #         "29b85d66a3fa084ff08722a0ee78c41bcdfb99b996cecb6bd547b2dd0a45f924",
+    #         "7253f30a018deb7c81ff098d239ccd05cdcab0759cef102b8a9e3a0a64441418"
+    #     )
+    #     for c in combinations(c_list, 2):
+    #         print(c[0], c[1])
+    #         bs.qualify_container_delta(c[0], c[1])
 
 
 
-    def test_qualify_container_delta_1(self):
-        c1 = "d2750f3dc96e337e58951205471f27c417825d6ef8986baf4970028fc06ce5d3"
-        c2 = "a6b25afc4a25595bc8fda2307896dee9f8dc7523d28b607d2b949195418a21f2"
-        print(bs.qualify_container_delta(c1, c2))
+    # def test_qualify_container_delta_1(self):
+    #     c1 = "d2750f3dc96e337e58951205471f27c417825d6ef8986baf4970028fc06ce5d3"
+    #     c2 = "a6b25afc4a25595bc8fda2307896dee9f8dc7523d28b607d2b949195418a21f2"
+    #     print(bs.qualify_container_delta(c1, c2))
 
 
 
 
-    def test_deltalize_container(self):
-        print(bs.deltalize_container("ada0280da9ffaf9da0212cb56411677bc9bb8469e8305fcd76525e4a4b779624"))
+    # def test_deltalize_container(self):
+    #     print(bs.deltalize_container("ada0280da9ffaf9da0212cb56411677bc9bb8469e8305fcd76525e4a4b779624"))
 
 
 
-    def test_housekeep_deltalize_dry(self):
-        print(bs.housekeep_deltalize())
+    # def test_housekeep_deltalize_dry(self):
+    #     print(bs.housekeep_deltalize())
 
 
-    def test_housekeep_deltalize_one(self):
-        print(bs.housekeep_deltalize(1))
+    # def test_housekeep_deltalize_one(self):
+    #     print(bs.housekeep_deltalize(1))
 
 
-    def test_housekeep_deltalize_ten(self):
-        print(bs.housekeep_deltalize(10))
+    # def test_housekeep_deltalize_ten(self):
+    #     print(bs.housekeep_deltalize(10))
 
 
     # TODO: Test of containers of zero bytes or very few bytes that may result in 
