@@ -22,7 +22,7 @@ DEFAULT_BATCH_SIZE = 5000
 
 
 #
-# CREATE INDEX ON:FileNode(sha256)
+# CREATE INDEX IF NOT EXISTS FOR (n:FileNode) ON (n.sha256)
 # CREATE INDEX ON:Container(sha256)
 # CREATE INDEX ON:Container(sha256)
 # CREATE INDEX ON:MUTATED(patch_to_ratio)
@@ -256,7 +256,7 @@ class BinaryStore():
         cache_path = self.hex_to_path(signature)
         meta['store'] = cache_path
 
-        # Update atime of the node
+        # TODO: Update atime of the node
 
         return meta
 
@@ -349,7 +349,7 @@ class BinaryStore():
 
 
 
-    def list_file_nodes(self):
+    def list_files(self):
         nl = []
 
         with self.graph.session() as s:
@@ -363,7 +363,7 @@ class BinaryStore():
 
             s.close()
 
-        return {'nodes': nl}
+        return {'files': nl}
 
 
     def deltalize_container(self, container_sig):
