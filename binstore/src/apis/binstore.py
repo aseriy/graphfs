@@ -2,7 +2,11 @@ from dotenv import load_dotenv
 import json
 import os, io
 from typing import List, Optional
-from fastapi import APIRouter, Header, Request, HTTPException, Response
+from fastapi import (
+  APIRouter,
+  Header, Request, HTTPException, Response,
+  File, UploadFile
+)
 from util.neo4j_helpers import get_credentials
 from binstore import BinaryStore
 from src.models.binstore import (
@@ -46,3 +50,19 @@ async def get_file_nodes(sha256: str):
     response.headers["Content-Disposition"] = f"attachment; filename={sha256}"
 
     return response
+
+@router.post("/binstore/files", tags=["binstore"], status_code=200)
+def upload(files: List[UploadFile] = File(...)):
+    for file in files:
+        try:
+            contents = file.file.read()
+            signature = bs.put_file_node(contents)
+            print (signature)
+
+        except Exception:
+            return {"message": "There was an error uploading the file(s)"}
+
+        finally:
+            file.file.close()
+
+    return {"message": f"Successfully uploaded {[file.filename for file in files]}"}
