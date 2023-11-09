@@ -256,7 +256,14 @@ class BinaryStore():
         cache_path = self.hex_to_path(signature)
         meta['store'] = cache_path
 
-        # TODO: Update atime of the node
+        # Update atime of the node
+        with self.graph.session() as s:
+            q = '''
+                MERGE (fn:FileNode {sha256: $sha256})
+                SET fn.atime = datetime()
+                RETURN fn
+                '''
+            result = s.run(q, sha256 = signature)
 
         return meta
 
