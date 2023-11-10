@@ -93,7 +93,7 @@ class BinaryStore():
         return total_deleted
 
 
-    # TODO: DO NOT ATTEPT TO CONTAINERIZE ZERO-BYTE NODES
+    # TODO: DO NOT ATTEMPT TO CONTAINERIZE ZERO-BYTE NODES
     def containerize_node(self, node_sum):
         ret_node = None
 
