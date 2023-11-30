@@ -1,6 +1,7 @@
 import sys
 import os
 import shutil
+import json
 import dumper
 dumper.max_depth = 10
 import hashlib
@@ -10,6 +11,7 @@ from neo4j import GraphDatabase
 from util.neo4j_helpers import get_credentials, get_node_ids_by_label_name
 import detools
 import io
+from vector_store import VectorStore
 
 
 store_perma_dir = 'perma'
@@ -40,6 +42,10 @@ class BinaryStore():
             GraphDatabase.driver("bolt://" + creds['neo4j_url'] + ":7687",
                                     auth=(creds['neo4j_username'],
                                     creds['neo4j_password']))
+        
+        self.vs = VectorStore(creds)
+
+
 
 
     def is_valid_hex(self, sum):
@@ -112,7 +118,7 @@ class BinaryStore():
             perma_path = os.path.join(self.bin_store_perma_dir, container_path)
             if not os.path.exists(perma_path):
                 perma_dir = os.path.dirname(perma_path)
-                perma_file = os.path.basename(perma_path)
+                # perma_file = os.path.basename(perma_path)
                 try:
                     os.makedirs(perma_dir)
                 except OSError:
@@ -124,12 +130,37 @@ class BinaryStore():
                 f.write(buf)
                 f.close()
 
-            container_list.append({'idx': c_idx, 'sha256': container_sum, 'size': len(buf)})
+
+            container_list.append({
+                'idx': c_idx,
+                'sha256': container_sum,
+                'size': len(buf),
+                'data': buf
+            })
             c_idx += 1
 
             buf = fileR.read(container_size)
 
         fileR.close()
+
+
+        # Save all {container_size} data chunks into the vector DB
+        size_list = [c['size'] for c in container_list]
+        sha256_list = [c['sha256'] for c in container_list]
+        data_list = [c['data'] for c in container_list]
+
+        if size_list[-1] < container_size:
+            sha256_list.pop()
+            data_list.pop()
+
+        if len(sha256_list) > 0:
+            entities = [
+                sha256_list,
+                data_list
+            ]
+            insert_result = self.vs.insert(entities)
+            print(insert_result)
+
 
         with self.graph.session() as s:
             q = '''
@@ -207,8 +238,9 @@ class BinaryStore():
                 if not os.path.isdir(cache_dir):
                     raise
 
-        with open(cache_path, "wb") as f:
-            f.write(data)
+            with open(cache_path, "wb") as f:
+                f.write(data)
+
 
         m = magic.Magic(mime=True)
         mp = m.from_file(cache_path)
@@ -287,13 +319,104 @@ class BinaryStore():
                 meta['node'] = n.get('sha256')
                 meta['size'] = n.get('size')
                 meta['mime'] = n.get('mime')
-                # meta['containers'] = [c.get('sha256') for c in containers]
                 meta['containers'] = len(containers)
+                # TODO: ctime, mtime, atime
 
             s.close()
 
         return meta
  
+
+    def get_node_containers(self, signature):
+        json_out = []
+
+        with self.graph.session() as s:
+            q = '''
+                MATCH (n:FileNode {sha256: $sha256})-[r:STORED_IN]->(c:Container)
+                WITH n,r,c
+                RETURN r.idx as i, c
+                ORDER BY r.idx
+                '''
+            result = s.run(q, sha256 = signature)
+            for r in result:
+                print(r.get('i'), r.get('c'))
+                idx = r.get('i')
+                container = r.get('c')
+
+                similar = None
+
+                if container.get('size') == container_size:
+                    similar = self.vs.find_similar(container.get('sha256'))
+
+                container_json = {
+                    'pos':      idx,
+                    'sha256':   container.get('sha256'),
+                    'size':     container.get('size')
+                }
+
+                if similar is not None:
+                    container_json['similar'] = similar
+
+                json_out.append(container_json)
+
+
+            s.close()
+
+        return json_out
+ 
+
+
+    def find_similar_container(self, sha256):
+        similar = self.vs.find_similar(sha256)
+        return similar
+
+
+
+    def next_deltalize_candidate(self):
+        candidate = None
+        
+        with self.graph.session() as s:
+            q = '''
+                MATCH (c:Container)
+                WHERE c.size = $container_size
+                AND c.simsearch IS NULL
+                AND NOT (c)-[:SIMILAR_TO]-(:Container)
+                RETURN c LIMIT 1
+                '''
+            
+            result = s.run(q, container_size = container_size)
+            r = result.single()
+            if r is not None:
+                candidate = r.get('c').get('sha256')
+            s.close()
+
+        return candidate
+
+
+
+
+
+    def mark_similarity_searched(self, container):
+        candidate = None
+        
+        with self.graph.session() as s:
+            q = '''
+                MATCH (c:Container {sha256: $sha256})
+                SET c.simsearch = datetime()
+                RETURN c
+                '''
+            
+            result = s.run(q, sha256 = container)
+            r = result.single()
+            if r is not None:
+                candidate = r.get('c').get('sha256')
+            s.close()
+
+        return candidate
+
+
+
+
 
     # count zero means dry run, just return the list of candidates
     # if count is greater than zero, containerize and return list of
@@ -490,57 +613,54 @@ class BinaryStore():
         return True
 
 
-    
-    def qualify_container_delta(self, c1, c2):
-        max_patch_to_ratio = 0.1
+    def deltalize(self, c1, c2, max_patch_to_ratio = None):
+        # max_patch_to_ratio = 0.1
         buffer = None
 
         c1_path = os.path.join(self.bin_store_perma_dir, self.hex_to_path(c1))
         c2_path = os.path.join(self.bin_store_perma_dir, self.hex_to_path(c2))
-        # print(c1_path)
-        # print(c2_path)
+        print(c1_path)
+        print(c2_path)
 
         fc1 = open(c1_path, 'rb')
         fc2 = open(c2_path, 'rb')
 
         fdelta = io.BufferedRandom(io.BytesIO())
-        detools.create_patch(fc1, fc2, fdelta)
+        detools.create_patch(
+                        fc1, fc2, fdelta,
+                        'none',             # compression
+                        'hdiffpatch',       # patch_type
+                        'hdiffpatch'            # algorithm
+                    )
+        
         fdelta.seek(0)
         delta_info = detools.patch_info(fdelta)
-        # print(delta_info)
-        # ('sequential', (1044, 'lzma', None, 0, None, None, 1024, [0, 9, 26, 10], [46, 0, 1, 932], [939, 1, 0, -159], 15.0))
-        (patch_size, compression, compression_info, dfpatch_size, data_format, dfpatch_info, to_size, \
-            diff_sizes, extra_sizes, adjustment_sizes, number_of_size_bytes) = delta_info[1]
-
-        if to_size > 0 and patch_size / to_size <= max_patch_to_ratio:
-            fdelta.seek(0)
-            buffer = fdelta.read()
-
-        return buffer
+        print(delta_info)
+        # (patch_size, compression, compression_info, dfpatch_size, data_format, dfpatch_info, to_size, \
+        #     diff_sizes, extra_sizes, adjustment_sizes, number_of_size_bytes) = delta_info[1]
+        
+        # if to_size > 0:
+        #     if  max_patch_to_ratio is None or patch_size / to_size <= max_patch_to_ratio:
+        fdelta.seek(0)
+        buffer = fdelta.read()
 
 
-# ('sequential', (
-# patch_size            1044                    Patch size:         1.02 KiB
-# compression           'lzma'
-# compression_info      None
-# dfpatch_size          0
-# data_format           None
-# dfpatch_info          None 
-# to_size               1024                    To size:            1 KiB
-# diff_sizes            [0, 9, 26, 10]
-# extra_sizes           [46, 0, 1, 932]
-# adjustment_sizes      [939, 1, 0, -159]
-# number_of_size_bytes  15.0
+        # Connect the two Container nodes
+        with self.graph.session() as s:
+            q = '''
+                MATCH (c1:Container {sha256: $c1})
+                MATCH (c2:Container {sha256: $c2})
+                MERGE (c1)-[s:SIMILAR_TO]->(c2)
+                SET s.delta = $delta, s.ctime = datetime()
+                RETURN c1, s, c2
+                '''
+
+            print(q)
+            result = s.run(q, c1 = c1, c2 = c2, delta = buffer)
+            print(result.peek())
+            s.close()
 
 
-# Patch/to ratio:     (patch_size / to_size) (lower is better)
-# Diff/extra ratio:   (number_of_diff_bytes / number_of_extra_bytes) (higher is better)
-# Size/data ratio:    (number_of_size_bytes / number_of_data_bytes) (lower is better)
+        return None, buffer
 
-#     number_of_diff_bytes = sum(diff_sizes)
-#     number_of_extra_bytes = sum(extra_sizes)
-#     number_of_data_bytes = (number_of_diff_bytes + number_of_extra_bytes)
-#     size_data_ratio = _format_ratio(number_of_size_bytes, number_of_data_bytes)
-#     patch_to_ratio = _format_ratio(patch_size, to_size)
-#     diff_extra_ratio = _format_ratio(number_of_diff_bytes, number_of_extra_bytes)
-#     compression = _format_compression(compression, compression_info)
+    

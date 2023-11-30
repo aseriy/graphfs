@@ -24,6 +24,8 @@ ft = FileTree(creds)
 
 @router.post("/filetree/{path:path}", tags=["filetree"], status_code=200)
 def make_directory(path: str, file: UploadFile = File(None)):
+    print(f"path: {path}")
+    print(f"file: {file.filename}")
     signature = None
 
     try:
@@ -37,6 +39,10 @@ def make_directory(path: str, file: UploadFile = File(None)):
     finally:
         file.file.close()
 
-    ft.create_file(signature, PurePath(path).joinpath(file.filename))
+    fn = ft.create_file(signature, PurePath(path).joinpath(file.filename))
+
+    # TODO: This shouldn't really belong here but in the FileNode creation code
+    bs.containerize_node(fn)
+    
     return None
 

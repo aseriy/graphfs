@@ -17,18 +17,24 @@ class FileTree():
     print(path)
     parts = path.parts
 
-    q_lines = ["MERGE (r:FileSystem:Root)"]
+    q_lines = [
+      "MERGE (r:FileSystem:Root)"
+    ]
+
+    path_last_part = 'r'
 
     for i, d in enumerate(parts, start=0):
-       q_lines.append(f"MERGE (d{i}:FileSystem:Directory {{name:\"{d}\"}})")
+       q_lines.append(f"MERGE ({path_last_part})<-[:HARD_LINK]-(d{i}:FileSystem:Directory {{name:\"{d}\"}})")
+       path_last_part = f"d{i}"
     
-    q_lines.append("MERGE (r)<-[:HARD_LINK]-(d0)")
+    # q_lines.append("MERGE (r)<-[:HARD_LINK]-(d0)")
 
-    parts = parts[:-1]
-    for i, d in enumerate(parts, start=0):
-       q_lines.append(f"MERGE (d{i})<-[:HARD_LINK]-(d{i+1})")
+    # parts = parts[:-1]
+    # for i, d in enumerate(parts, start=0):
+    #    q_lines.append(f"MERGE (d{i})<-[:HARD_LINK]-(d{i+1})")
 
     part_list = ','.join([f"d{i}" for i in range(len(path.parts))])
+    # part_list = f"r, {part_list}"
 
     q = "\n".join(q_lines)
     r = f"RETURN {part_list}"
@@ -59,9 +65,12 @@ class FileTree():
 
 
   def create_file(self, sha256: str, path: PurePath):
+    file_node = None
     q, r = self.query_create_file(sha256, path)
     print("\n".join([q,r]))
     with self.graph.session() as s:
       result = s.run("\n".join([q, r]))
-      print(result)
+      file_node = result.single().get('fn').get('sha256')
+
+    return file_node
 

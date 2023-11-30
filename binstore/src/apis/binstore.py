@@ -27,8 +27,14 @@ async def get_file_nodes():
 
 
 @router.get("/binstore/files/{sha256}", tags=["binstore"], status_code=200)
-async def get_file_nodes(sha256: str):
+async def get_file_node_meta(sha256: str):
     json_resp = bs.get_meta(sha256)
+    return json_resp
+
+
+@router.get("/binstore/files/{sha256}/containers", tags=["binstore"], status_code=200)
+async def get_file_node_containers(sha256: str):
+    json_resp = bs.get_node_containers(sha256)
     return json_resp
 
 

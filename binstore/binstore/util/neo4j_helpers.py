@@ -16,7 +16,11 @@ def get_credentials(dir_name, config_file):
     env = cfg['environments']['DEV']
     bin_store_dir = env['BINSTORE']['path']
     neo4j_url, neo4j_username, neo4j_password = cfg['local_url'], env['NEO4J']['username'], env['NEO4J']['password']
-    conn = {'neo4j_url': neo4j_url, 'neo4j_username': neo4j_username, 'neo4j_password': neo4j_password, 'bin_store_dir': bin_store_dir}
+    conn = {
+        'neo4j_url': neo4j_url, 'neo4j_username': neo4j_username, 'neo4j_password': neo4j_password,
+        'bin_store_dir': bin_store_dir,
+        'milvus_url': cfg['milvus_url']
+    }
 
     return conn
 
