@@ -11,7 +11,7 @@ from neo4j import GraphDatabase
 from util.neo4j_helpers import get_credentials, get_node_ids_by_label_name
 import detools
 import io
-from vector_store import VectorStore
+from vectorstore import VectorStore
 
 
 store_perma_dir = 'perma'
