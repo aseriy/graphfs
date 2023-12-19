@@ -2,7 +2,7 @@ from neo4j import GraphDatabase
 from pathlib import PurePath
 
 
-class FileTree():
+class FileStore():
   def __init__(self, creds):
       # bin_store_dir = creds['bin_store_dir']
       # self.bin_store_perma_dir = os.path.join(bin_store_dir, store_perma_dir)

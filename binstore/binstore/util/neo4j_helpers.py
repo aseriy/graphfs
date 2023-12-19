@@ -3,13 +3,13 @@ from neo4j import GraphDatabase
 from pathlib import Path
 
 import logging
-
+import os
 
 
 # Returns a dictionary with k/v pairs necessary to instantiate a driver object for Neo4j, and a reference to the bin_store path
 def get_credentials(dir_name, config_file):
 
-    path = Path.home().joinpath( f'{dir_name}' , f'{config_file}')
+    path = Path.cwd().joinpath( f'{dir_name}' , f'{config_file}')
     with path.open(mode='r') as ymlfile:
         cfg = yaml.safe_load(ymlfile)
 

@@ -20,7 +20,7 @@ def main(neo4j_url, neo4j_username, neo4j_password, binstore_path):
     }
 
 
-    f=open('/home/vagrant/etc/config.yml','w')
+    f=open('./etc/config.yml','w')
     f.write(yaml.dump(d))
     f.close
 

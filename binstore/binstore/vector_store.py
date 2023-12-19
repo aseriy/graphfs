@@ -11,7 +11,7 @@ from pymilvus import (
 from util.neo4j_helpers import get_credentials
 import os
 
-creds = get_credentials('etc', 'config.yml')
+creds = get_credentials('../etc', 'config.yml')
 fmt = "\n=== {:30} ===\n"
 collection = 'binstore'
 similarity_threshold = 512

@@ -6,7 +6,6 @@ from fastapi import FastAPI
 app = FastAPI()
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.include_router(apis, prefix="/apis")
-# app.include_router(graphql, prefix="/graphql")
 
 # @app.on_event("startup")
 # async def startup():

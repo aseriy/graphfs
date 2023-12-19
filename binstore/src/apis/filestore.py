@@ -9,7 +9,7 @@ from fastapi import (
   File, UploadFile
 )
 from util.neo4j_helpers import get_credentials
-from filetree import FileTree
+from filestore import FileStore
 from binstore import BinaryStore
 from src.models.binstore import (
     FileNode
@@ -17,12 +17,12 @@ from src.models.binstore import (
 
 router = APIRouter()
 
-creds = get_credentials('etc', 'config.yml')
+creds = get_credentials('../etc', 'config.yml')
 bs = BinaryStore(creds)
-ft = FileTree(creds)
+ft = FileStore(creds)
 
 
-@router.post("/filetree/{path:path}", tags=["filetree"], status_code=200)
+@router.post("/filestore/{path:path}", tags=["filestore"], status_code=200)
 def make_directory(path: str, file: UploadFile = File(None)):
     print(f"path: {path}")
     print(f"file: {file.filename}")

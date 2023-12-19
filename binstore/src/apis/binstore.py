@@ -15,7 +15,7 @@ from src.models.binstore import (
 
 router = APIRouter()
 
-creds = get_credentials('etc', 'config.yml')
+creds = get_credentials('../etc', 'config.yml')
 bs = BinaryStore(creds)
 
 
