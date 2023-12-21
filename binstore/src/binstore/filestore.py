@@ -74,8 +74,8 @@ class FileStore():
     return file_node
 
 
-  def query_list_file(self, node_id: int):
-    q = f"MATCH (f:Regular)-[r:REFERENCES]->(fn:FileNode) WHERE id(f)={node_id} RETURN f,r,fn"
+  def query_list_file(self, node_id: str):
+    q = f"MATCH (f:Regular)-[r:REFERENCES]->(fn:FileNode) WHERE elementId(f)='{node_id}' RETURN f,r,fn"
 
     listing = None
     f, r, fn = None, None, None
@@ -100,8 +100,8 @@ class FileStore():
 
 
 
-  def query_list_directory(self, node_id: int):
-    q = f"""MATCH (p:FileSystem)<-[:HARD_LINK]-(d:Directory) WHERE id(d)={node_id}
+  def query_list_directory(self, node_id: str):
+    q = f"""MATCH (p:FileSystem)<-[:HARD_LINK]-(d:Directory) WHERE elementId(d)='{node_id}'
             OPTIONAL MATCH (d)<-[r:HARD_LINK]-(f:FileSystem)
             RETURN p, d, collect(f) as children"""
 
@@ -127,15 +127,11 @@ class FileStore():
     if len(children):
       listing['children'] = []
       for child in children:
-        print(list(child.labels))
-        print(child.get('name'))
-        print(child.id)
-
         if 'Directory' in child.labels:
-          listing['children'].append(self.query_list_directory(child.id))
+          listing['children'].append(self.query_list_directory(child.element_id))
 
         else:
-          listing['children'].append(self.query_list_file(child.id))
+          listing['children'].append(self.query_list_file(child.element_id))
 
       listing['size'] += len(children)
 
@@ -154,7 +150,7 @@ class FileStore():
       path_list.append(f"({leaf}:FileSystem {{name: \"{p}\"}})")
     
 
-    q = f"MATCH {'<-[:HARD_LINK]-'.join(path_list)} RETURN id(f) as id, labels(f) AS labels"
+    q = f"MATCH {'<-[:HARD_LINK]-'.join(path_list)} RETURN elementId(f) as id, labels(f) AS labels"
     
     is_dir = False
     path_id = None
