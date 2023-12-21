@@ -8,7 +8,7 @@ from fastapi import (
   File, UploadFile
 )
 from util.neo4j_helpers import get_credentials
-from binstore import BinaryStore
+from binstore.binstore import BinaryStore
 from src.models.binstore import (
     FileNode
 )

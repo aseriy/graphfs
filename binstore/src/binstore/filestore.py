@@ -1,5 +1,6 @@
 from neo4j import GraphDatabase
 from pathlib import PurePath
+import datetime
 
 
 class FileStore():
@@ -14,30 +15,25 @@ class FileStore():
 
 
   def query_make_dir(self, path: PurePath):
-    print(path)
+    print("query_make_dir: path: ", path)
+    print("query_make_dir: path.parts: ", path.parts)
     parts = path.parts
 
     q_lines = [
-      "MERGE (r:FileSystem:Root)"
+      "MERGE (d0:FileSystem:Root)"
     ]
 
-    path_last_part = 'r'
+    path_last_part = 'd0'
+    part_list = [path_last_part]
 
-    for i, d in enumerate(parts, start=0):
+
+    for i, d in enumerate(parts, start=1):
        q_lines.append(f"MERGE ({path_last_part})<-[:HARD_LINK]-(d{i}:FileSystem:Directory {{name:\"{d}\"}})")
        path_last_part = f"d{i}"
+       part_list.append(path_last_part)
     
-    # q_lines.append("MERGE (r)<-[:HARD_LINK]-(d0)")
-
-    # parts = parts[:-1]
-    # for i, d in enumerate(parts, start=0):
-    #    q_lines.append(f"MERGE (d{i})<-[:HARD_LINK]-(d{i+1})")
-
-    part_list = ','.join([f"d{i}" for i in range(len(path.parts))])
-    # part_list = f"r, {part_list}"
-
     q = "\n".join(q_lines)
-    r = f"RETURN {part_list}"
+    r = f"RETURN {','.join(part_list)}"
 
     return q, r
   
@@ -54,8 +50,11 @@ class FileStore():
 
   def query_create_file(self, sha256: str, path: PurePath):
     q, r = self.query_make_dir(path.parent)
+    print("q: ", q)
+    print("r: ", r)
     
-    n = len(path.parts)-2
+    print("parts: ", path.parts, len(path.parts))
+    n = len(path.parts)-1
     q = f"MATCH (fn:FileNode {{sha256: \"{sha256}\"}})\n" + q
     q += f"\nMERGE (fn)<-[:REFERENCES]-(f:FileSystem:Regular {{name: \"{path.name}\"}})-[:HARD_LINK]->(d{n})"
     r += ",f,fn"
@@ -74,3 +73,115 @@ class FileStore():
 
     return file_node
 
+
+  def query_list_file(self, node_id: int):
+    q = f"MATCH (f:Regular)-[r:REFERENCES]->(fn:FileNode) WHERE id(f)={node_id} RETURN f,r,fn"
+
+    listing = None
+    f, r, fn = None, None, None
+
+    with self.graph.session() as s:
+      result = s.run(q)
+      f_r_fn = result.single()
+      f = f_r_fn.get('f')
+      r = f_r_fn.get('r')
+      fn = f_r_fn.get('fn')
+
+    listing = {
+      'type': 'File',
+      'name': f.get('name'),
+      'size': fn.get('size'),
+      'time': str(fn.get('ctime')),
+      'mime': fn.get('mime'),
+      'sha256': fn.get('sha256')
+    }
+
+    return listing
+
+
+
+  def query_list_directory(self, node_id: int):
+    q = f"""MATCH (p:FileSystem)<-[:HARD_LINK]-(d:Directory) WHERE id(d)={node_id}
+            OPTIONAL MATCH (d)<-[r:HARD_LINK]-(f:FileSystem)
+            RETURN p, d, collect(f) as children"""
+
+    listing = None
+    parent, directory, children = None, None, None
+
+    with self.graph.session() as s:
+      result = s.run(q)
+      p_d_ch = result.single()
+      parent = p_d_ch.get('p')
+      directory = p_d_ch.get('d')
+      children = p_d_ch.get('children')
+
+    listing = {
+      'parent': {
+        'name': parent.get('name')
+      },
+      'type': 'Directory',
+      'name': directory.get('name'),
+      'size': 2
+    }
+
+    if len(children):
+      listing['children'] = []
+      for child in children:
+        print(list(child.labels))
+        print(child.get('name'))
+        print(child.id)
+
+        if 'Directory' in child.labels:
+          listing['children'].append(self.query_list_directory(child.id))
+
+        else:
+          listing['children'].append(self.query_list_file(child.id))
+
+      listing['size'] += len(children)
+
+
+    return listing
+
+
+
+  def query_list(self, path: PurePath):
+    path_list = [
+      '(:Root)'
+    ]
+
+    for i, p in enumerate(path.parts, start=1):
+      leaf = 'f' if len(path.parts) == i else ''
+      path_list.append(f"({leaf}:FileSystem {{name: \"{p}\"}})")
+    
+
+    q = f"MATCH {'<-[:HARD_LINK]-'.join(path_list)} RETURN id(f) as id, labels(f) AS labels"
+    
+    is_dir = False
+    path_id = None
+
+    with self.graph.session() as s:
+      result = s.run(q)
+      path_node = result.single()
+      path_id = path_node.get('id')
+      if 'Directory' in path_node.get('labels'):
+        is_dir = True
+      
+    print("path_id: ", path_id)
+    print("is_dir: ", is_dir)
+    
+    listing = None
+
+    if is_dir:
+      listing = self.query_list_directory(path_id)
+
+    else:
+      listing = self.query_list_file(path_id)
+
+    return listing
+
+  
+
+  def list(self, path: PurePath):
+    listing = self.query_list(path)
+
+    return listing
