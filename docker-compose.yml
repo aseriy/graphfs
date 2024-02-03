@@ -17,7 +17,8 @@ services:
       - "7474:7474"
       - "7687:7687"
     volumes:
-      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j:/data
+      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j/data:/data
+      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j/logs:/logs
     command: neo4j
 
   etcd:
