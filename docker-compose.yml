@@ -42,12 +42,12 @@ services:
 
   minio:
     container_name: milvus-minio
-    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    image: minio/minio:RELEASE.2024-02-17T01-15-57Z
     networks:
       - milvus
     environment:
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
     ports:
       - "9001:9001"
       - "9000:9000"
@@ -55,7 +55,7 @@ services:
       - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/minio:/minio_data
     command: minio server /minio_data --console-address ":9001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "timeout", "5s", "bash", "-c", ":> /dev/tcp/127.0.0.1/9000", "||", "exit", "1"]
       interval: 30s
       timeout: 20s
       retries: 3
@@ -86,7 +86,6 @@ services:
       - "etcd"
       - "minio"
 
-  # docker run -p 8300:3000 -e MILVUS_URL=192.168.1.7:19530 zilliz/attu:v2.3.1
   attu:
     container_name: attu
     image: zilliz/attu:v2.3.1
