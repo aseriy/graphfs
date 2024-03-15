@@ -19,7 +19,9 @@ def get_credentials(dir_name, config_file):
     conn = {
         'neo4j_url': neo4j_url, 'neo4j_username': neo4j_username, 'neo4j_password': neo4j_password,
         'bin_store_dir': bin_store_dir,
-        'milvus_url': cfg['milvus_url']
+        'milvus_url': cfg['milvus_url'],
+        'graphfs_host': cfg['graphfs_host'],
+        'graphfs_port': cfg['graphfs_port']
     }
 
     return conn

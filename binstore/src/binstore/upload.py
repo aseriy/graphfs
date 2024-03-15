@@ -3,33 +3,71 @@ import requests
 import os
 import pathlib
 import json
+from util.neo4j_helpers import get_credentials
 
-BASEURL = 'http://localhost:8000/apis/filetree'
+
+BASEURL = 'http://localhost:8000/apis/filestore'
 
 
 
 def upload_dir(dest, dir_path):
-    SKIP_DIRS = ['.git']
+    dir_prefix = os.path.dirname(dir_path)
+    dir_name = os.path.basename(dir_path)
+    # print("dir_prefix: ", dir_prefix)
+    # print("dir_name: ", dir_name)
 
-    sources = ['/'.join(src.parts) for src in
-        list(
-            filter (
-                lambda item: set(item.parts).isdisjoint(SKIP_DIRS),
-                pathlib.Path(dir_path).rglob("*")
-            )
-        ) if src.is_file()
+    src_dirs = list(set(
+        ['/'.join(src.parts) for src in
+            list(pathlib.Path(dir_path).rglob("*"))
+            if os.path.isdir(src)
+        ]
+    ))
+    # print(json.dumps(src_dirs, indent=4))
+
+    src_files = ['/'.join(src.parts) for src in
+        list(pathlib.Path(dir_path).rglob("*"))
+        if os.path.isfile(src)
     ]
-    # print(json.dumps(sources, indent=2))
+    # print(json.dumps(src_files, indent=4))
 
-    for f in sources:
-        upload_file(dest, f)
+    # src_dirs.sort()
+    # for d in src_dirs:
+    #     dest_dir = os.path.join(
+    #         dest,
+    #         pathlib.PurePath(d).relative_to(dir_prefix)
+    #     )
+    #     print(dest_dir)
+    #     create_directory(dest_dir)
 
+
+    src_files.sort()
+    for f in src_files:
+        dest_dir = os.path.join(
+            dest,
+            os.path.dirname(pathlib.PurePath(f).relative_to(dir_prefix))
+        )
+        dest_file = f
+        print("Copy file: ", dest_file)
+        print("To dir:    ", dest_file)
+        upload_file(dest_dir, dest_file)
+
+
+
+def create_directory(path):
+    url = f"{BASEURL}/{path}"
+    print("url: ", url)
+    r = requests.post(url)
+    print(r)
 
 
 def upload_file(dest, source):
-    url = f"{BASEURL}/{dest}/{os.path.dirname(source)}"
     file_name = os.path.basename(source)
-    print(file_name)
+
+    url = BASEURL
+    if dest is not None:
+        url = f"{BASEURL}/{dest}"
+
+    print("url: ", url)
     with open(source, 'rb') as f:
         print(f)
         r = requests.post(url, files={'file': f})
@@ -58,6 +96,9 @@ if __name__ == "__main__":
     src_path = args.source
     print(dest_dir)
     print(src_path)
+
+    creds = get_credentials(os.path.join(os.path.dirname(__file__), '../../../etc'), 'config.yml')
+    BASEURL = "http://{}:{}/apis/filestore".format(creds['graphfs_host'], creds['graphfs_port'])
 
     if os.path.isdir(src_path):
         upload_dir(dest_dir, src_path)

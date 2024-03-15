@@ -101,9 +101,12 @@ class FileStore():
 
 
   def query_list_directory(self, node_id: str):
-    q = f"""MATCH (p:FileSystem)<-[:HARD_LINK]-(d:Directory) WHERE elementId(d)='{node_id}'
-            OPTIONAL MATCH (d)<-[r:HARD_LINK]-(f:FileSystem)
+    q = f"""MATCH (d) WHERE elementId(d)='{node_id}'
+            OPTIONAL MATCH (d)<-[:HARD_LINK]-(f:FileSystem)
+            OPTIONAL MATCH (p:FileSystem)<-[:HARD_LINK]-(d)
             RETURN p, d, collect(f) as children"""
+    
+    print("Query: ", q)
 
     listing = None
     parent, directory, children = None, None, None
@@ -115,14 +118,18 @@ class FileStore():
       directory = p_d_ch.get('d')
       children = p_d_ch.get('children')
 
-    listing = {
-      'parent': {
-        'name': parent.get('name')
-      },
-      'type': 'Directory',
-      'name': directory.get('name'),
-      'size': 2
-    }
+    listing = {}
+
+    print("Parent: ", parent)           
+    if parent is not None:
+      listing['parent'] = parent.get('name')
+    else:
+      listing['parent'] = '/'
+
+
+    listing['name'] = directory.get('name')
+    listing['size'] = 2
+
 
     if len(children):
       listing['children'] = []
@@ -140,31 +147,43 @@ class FileStore():
 
 
 
-  def query_list(self, path: PurePath):
-    path_list = [
-      '(:Root)'
-    ]
-
-    for i, p in enumerate(path.parts, start=1):
-      leaf = 'f' if len(path.parts) == i else ''
-      path_list.append(f"({leaf}:FileSystem {{name: \"{p}\"}})")
-    
-
-    q = f"MATCH {'<-[:HARD_LINK]-'.join(path_list)} RETURN elementId(f) as id, labels(f) AS labels"
-    
+  def query_list(self, path: PurePath = None):
     is_dir = False
     path_id = None
 
-    with self.graph.session() as s:
-      result = s.run(q)
-      path_node = result.single()
-      path_id = path_node.get('id')
-      if 'Directory' in path_node.get('labels'):
-        is_dir = True
+    if path is not None:
+      path_list = [
+        '(:Root)'
+      ]
+
+      for i, p in enumerate(path.parts, start=1):
+        leaf = 'f' if len(path.parts) == i else ''
+        path_list.append(f"({leaf}:FileSystem {{name: \"{p}\"}})")
       
+      q = f"MATCH {'<-[:HARD_LINK]-'.join(path_list)} RETURN elementId(f) as id, labels(f) AS labels"
+      print("Query: ", q)
+    
+      with self.graph.session() as s:
+        result = s.run(q)
+        path_node = result.single()
+        path_id = path_node.get('id')
+        if 'Directory' in path_node.get('labels'):
+          is_dir = True
+        
+    else:     # Root
+      q = "MATCH (r:Root) RETURN elementId(r) as id"
+      print("Query: ", q)
+
+      with self.graph.session() as s:
+        result = s.run(q)
+        path_node = result.single()
+        path_id = path_node.get('id')
+        is_dir = True
+
+
+
     print("path_id: ", path_id)
     print("is_dir: ", is_dir)
-    
     listing = None
 
     if is_dir:
@@ -173,11 +192,11 @@ class FileStore():
     else:
       listing = self.query_list_file(path_id)
 
+    
     return listing
 
   
 
-  def list(self, path: PurePath):
+  def list(self, path: PurePath = None):
     listing = self.query_list(path)
-
     return listing

@@ -22,6 +22,13 @@ bs = BinaryStore(creds)
 fs = FileStore(creds)
 
 
+@router.get("/filestore", tags=["filestore"], status_code=200)
+def file_list():
+    ls_data = fs.list()
+    return ls_data
+
+
+
 @router.get("/filestore/{path:path}", tags=["filestore"], status_code=200)
 def file_list(path: str):
     print(f"path: {path}")
