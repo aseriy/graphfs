@@ -6,38 +6,35 @@ import json
 from util.neo4j_helpers import get_credentials
 
 
-BASEURL = 'http://localhost:8000/apis/filestore'
+creds = get_credentials(os.path.join(os.path.dirname(__file__), '../../../etc'), 'config.yml')
+BASEURL = "http://{}:{}/apis/filestore".format(creds['graphfs_host'], creds['graphfs_port'])
 
 
 
 def upload_dir(dest, dir_path):
     dir_prefix = os.path.dirname(dir_path)
     dir_name = os.path.basename(dir_path)
-    # print("dir_prefix: ", dir_prefix)
-    # print("dir_name: ", dir_name)
 
     src_dirs = list(set(
-        ['/'.join(src.parts) for src in
+        [str(src) for src in
             list(pathlib.Path(dir_path).rglob("*"))
             if os.path.isdir(src)
         ]
     ))
-    # print(json.dumps(src_dirs, indent=4))
 
-    src_files = ['/'.join(src.parts) for src in
+    src_files = [str(src) for src in
         list(pathlib.Path(dir_path).rglob("*"))
         if os.path.isfile(src)
     ]
-    # print(json.dumps(src_files, indent=4))
 
-    # src_dirs.sort()
-    # for d in src_dirs:
-    #     dest_dir = os.path.join(
-    #         dest,
-    #         pathlib.PurePath(d).relative_to(dir_prefix)
-    #     )
-    #     print(dest_dir)
-    #     create_directory(dest_dir)
+    src_dirs.sort()
+    for d in src_dirs:
+        dest_dir = os.path.join(
+            dest,
+            pathlib.PurePath(d).relative_to(dir_prefix)
+        )
+        print(dest_dir)
+        create_directory(dest_dir)
 
 
     src_files.sort()
@@ -96,9 +93,6 @@ if __name__ == "__main__":
     src_path = args.source
     print(dest_dir)
     print(src_path)
-
-    creds = get_credentials(os.path.join(os.path.dirname(__file__), '../../../etc'), 'config.yml')
-    BASEURL = "http://{}:{}/apis/filestore".format(creds['graphfs_host'], creds['graphfs_port'])
 
     if os.path.isdir(src_path):
         upload_dir(dest_dir, src_path)
