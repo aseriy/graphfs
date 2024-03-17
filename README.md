@@ -14,3 +14,12 @@ And much, much more. GraphFS leverages the power of graph and vector databases t
 brew install libmagic
 uvicorn main:app --host 0.0.0.0 --port 8080 --reload
 ```
+
+
+Neo4j Indexes
+
+```
+CREATE INDEX FOR (c:Container) ON c.sha256
+CREATE INDEX FOR (f:Regular) ON f.name
+CREATE INDEX FOR (d:Directory) ON d.name
+```
