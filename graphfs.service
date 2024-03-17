@@ -1,13 +1,14 @@
 [Unit]
-Description=GraphFS API Server
+Description=GraphFS service.     
 
 [Service]
-Type=simple
-User=ubuntu
-Group=ubuntu
 WorkingDirectory=/home/ubuntu/git/graphfs
 ExecStart=/home/ubuntu/git/graphfs/graphfs-service.bash
 Restart=always
+RestartSec=5
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=%n
 
 [Install]
 WantedBy=multi-user.target
