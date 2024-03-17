@@ -28,4 +28,5 @@ etc/config.yml
 demo-data/
 graphfs-env/
 volumes/
+.flatten-git-repo
 
