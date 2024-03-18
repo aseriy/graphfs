@@ -8,8 +8,8 @@ WorkingDirectory=/home/ubuntu/git/graphfs
 ExecStart=/home/ubuntu/git/graphfs/graphfs-service.bash
 Restart=always
 RestartSec=5
-StandardOutput=/mnt/volumes/graphfs/log/graphfs.log
-StandardError=/mnt/volumes/graphfs/log/graphfs.err
+StandardOutput=file:/mnt/volumes/graphfs/log/graphfs.log
+StandardError=file:/mnt/volumes/graphfs/log/graphfs.err
 
 [Install]
 WantedBy=multi-user.target

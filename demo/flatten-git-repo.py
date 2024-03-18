@@ -165,8 +165,7 @@ if __name__ == "__main__":
           commits_done[str(commit)] = True
           commits_left -= 1
   
-
-    commit_tracker_write(commit_tracker, commits_done)
+          commit_tracker_write(commit_tracker, commits_done)
 
     exit(0)
 
