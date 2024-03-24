@@ -163,9 +163,9 @@ if __name__ == "__main__":
           rmtree(commit_path)
 
           commits_done[str(commit)] = True
+          commit_tracker_write(commit_tracker, commits_done)
           commits_left -= 1
   
-          commit_tracker_write(commit_tracker, commits_done)
 
     exit(0)
 

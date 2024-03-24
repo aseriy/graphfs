@@ -23,3 +23,4 @@ CREATE INDEX FOR (c:Container) ON c.sha256
 CREATE INDEX FOR (f:Regular) ON f.name
 CREATE INDEX FOR (d:Directory) ON d.name
 ```
+

@@ -62,7 +62,7 @@ services:
 
   standalone:
     container_name: milvus-standalone
-    image: milvusdb/milvus:v2.3.3
+    image: 905418022626.dkr.ecr.us-east-1.amazonaws.com/milvus:v2.3.3-graphfs
     networks:
       - milvus
     command: ["milvus", "run", "standalone"]

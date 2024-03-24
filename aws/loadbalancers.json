@@ -1,0 +1,14 @@
+{
+  "loadBalancers": [
+    {
+      "targetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/neo4j/f78f3c1c7dd2c103",
+      "containerName": "neo4j",
+      "containerPort": 7687
+    },
+    {
+      "targetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/milvus/0b6574f504daf7e7",
+      "containerName": "milvus-standalone",
+      "containerPort": 19530
+    }
+  ]
+}

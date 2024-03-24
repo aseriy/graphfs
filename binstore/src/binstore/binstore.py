@@ -100,6 +100,8 @@ class BinaryStore():
 
 
     # TODO: DO NOT ATTEMPT TO CONTAINERIZE ZERO-BYTE NODES
+    # TODO: The bigger question here is, should there even be a Container for a ZERO byte FileNode
+    #       and if so, how to reflect this in the graph schema.
     def containerize_node(self, node_sum):
         ret_node = None
 
@@ -663,4 +665,19 @@ class BinaryStore():
 
         return None, buffer
 
+
+
+    def scrub(self, batch_size=10):
+        with self.graph.session() as s:
+            q = f'''
+                MATCH (c:Container) WHERE NOT (c)<-[:STORED_IN]-(:FileNode)
+                RETURN c LIMIT {batch_size}
+                '''
+
+            print(q)
+            # result = s.run(q, c1 = c1, c2 = c2, delta = buffer)
+            # print(result.peek())
+            s.close()
+
+        return None
     

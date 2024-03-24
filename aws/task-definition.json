@@ -1,0 +1,433 @@
+{
+  "taskDefinitionArn": "arn:aws:ecs:us-east-1:905418022626:task-definition/graphfs:31",
+  "containerDefinitions": [
+      {
+          "name": "neo4j",
+          "image": "neo4j",
+          "cpu": 0,
+          "memory": 6144,
+          "portMappings": [
+              {
+                  "name": "neo4j-browser",
+                  "containerPort": 7474,
+                  "hostPort": 7474,
+                  "protocol": "tcp",
+                  "appProtocol": "http"
+              },
+              {
+                  "name": "neo4j-bolt",
+                  "containerPort": 7687,
+                  "hostPort": 7687,
+                  "protocol": "tcp"
+              }
+          ],
+          "essential": true,
+          "environment": [],
+          "environmentFiles": [],
+          "mountPoints": [
+              {
+                  "sourceVolume": "neo4j-data",
+                  "containerPath": "/data",
+                  "readOnly": false
+              },
+              {
+                  "sourceVolume": "neo4j-logs",
+                  "containerPath": "/logs",
+                  "readOnly": false
+              }
+          ],
+          "volumesFrom": [],
+          "ulimits": [],
+          "logConfiguration": {
+              "logDriver": "awslogs",
+              "options": {
+                  "awslogs-create-group": "true",
+                  "awslogs-group": "/ecs/graphfs",
+                  "awslogs-region": "us-east-1",
+                  "awslogs-stream-prefix": "ecs"
+              },
+              "secretOptions": []
+          },
+          "systemControls": []
+      },
+      {
+          "name": "milvus-etcd",
+          "image": "quay.io/coreos/etcd:v3.5.5",
+          "cpu": 0,
+          "portMappings": [
+              {
+                  "name": "etcd-peer-comm",
+                  "containerPort": 2380,
+                  "hostPort": 2380,
+                  "protocol": "tcp"
+              },
+              {
+                  "name": "etcd-client-requests",
+                  "containerPort": 2379,
+                  "hostPort": 2379,
+                  "protocol": "tcp"
+              }
+          ],
+          "essential": true,
+          "command": [
+              "etcd",
+              "-advertise-client-urls",
+              "http://127.0.0.1:2379",
+              "-listen-client-urls",
+              "http://0.0.0.0:2379",
+              "--data-dir",
+              "/etcd"
+          ],
+          "environment": [
+              {
+                  "name": "ETCD_AUTO_COMPACTION_MODE",
+                  "value": "revision"
+              },
+              {
+                  "name": "ETCD_SNAPSHOT_COUNT",
+                  "value": "50000"
+              },
+              {
+                  "name": "ETCD_AUTO_COMPACTION_RETENTION",
+                  "value": "1000"
+              },
+              {
+                  "name": "ETCD_QUOTA_BACKEND_BYTES",
+                  "value": "4294967296"
+              }
+          ],
+          "environmentFiles": [],
+          "mountPoints": [
+              {
+                  "sourceVolume": "etcd",
+                  "containerPath": "/etcd",
+                  "readOnly": false
+              }
+          ],
+          "volumesFrom": [],
+          "logConfiguration": {
+              "logDriver": "awslogs",
+              "options": {
+                  "awslogs-create-group": "true",
+                  "awslogs-group": "/ecs/graphfs",
+                  "awslogs-region": "us-east-1",
+                  "awslogs-stream-prefix": "ecs"
+              },
+              "secretOptions": []
+          },
+          "healthCheck": {
+              "command": [
+                  "CMD",
+                  "etcdctl",
+                  "endpoint",
+                  "health"
+              ],
+              "interval": 30,
+              "timeout": 20,
+              "retries": 3
+          },
+          "systemControls": []
+      },
+      {
+          "name": "milvus-minio",
+          "image": "minio/minio:RELEASE.2024-03-05T04-48-44Z",
+          "cpu": 0,
+          "portMappings": [
+              {
+                  "name": "minio-console",
+                  "containerPort": 9001,
+                  "hostPort": 9001,
+                  "protocol": "tcp",
+                  "appProtocol": "http"
+              },
+              {
+                  "name": "minio-api",
+                  "containerPort": 9000,
+                  "hostPort": 9000,
+                  "protocol": "tcp",
+                  "appProtocol": "http"
+              }
+          ],
+          "essential": true,
+          "command": [
+              "minio",
+              "server",
+              "/minio_data",
+              "--console-address",
+              ":9001"
+          ],
+          "environment": [
+              {
+                  "name": "MINIO_ROOT_PASSWORD",
+                  "value": "minioadmin"
+              },
+              {
+                  "name": "MINIO_ROOT_USER",
+                  "value": "minioadmin"
+              }
+          ],
+          "environmentFiles": [],
+          "mountPoints": [
+              {
+                  "sourceVolume": "minio",
+                  "containerPath": "/minio_data",
+                  "readOnly": false
+              }
+          ],
+          "volumesFrom": [],
+          "logConfiguration": {
+              "logDriver": "awslogs",
+              "options": {
+                  "awslogs-create-group": "true",
+                  "awslogs-group": "/ecs/graphfs",
+                  "awslogs-region": "us-east-1",
+                  "awslogs-stream-prefix": "ecs"
+              },
+              "secretOptions": []
+          },
+          "healthCheck": {
+              "command": [
+                  "CMD",
+                  "timeout",
+                  "5s",
+                  "bash",
+                  "-c",
+                  ":> /dev/tcp/127.0.0.1/9000",
+                  "||",
+                  "exit",
+                  "1"
+              ],
+              "interval": 30,
+              "timeout": 20,
+              "retries": 3
+          },
+          "systemControls": []
+      },
+      {
+          "name": "milvus-standalone",
+          "image": "905418022626.dkr.ecr.us-east-1.amazonaws.com/milvus:v2.3.3-graphfs",
+          "cpu": 0,
+          "portMappings": [
+              {
+                  "name": "milvus-grpc",
+                  "containerPort": 19530,
+                  "hostPort": 19530,
+                  "protocol": "tcp"
+              },
+              {
+                  "name": "milvus-restapi",
+                  "containerPort": 9091,
+                  "hostPort": 9091,
+                  "protocol": "tcp",
+                  "appProtocol": "http"
+              }
+          ],
+          "essential": true,
+          "command": [
+              "milvus",
+              "run",
+              "standalone"
+          ],
+          "environment": [
+              {
+                  "name": "MINIO_ADDRESS",
+                  "value": "minio-api:9000"
+              },
+              {
+                  "name": "ETCD_ENDPOINTS",
+                  "value": "etcd-client-requests:2379"
+              }
+          ],
+          "environmentFiles": [],
+          "mountPoints": [
+              {
+                  "sourceVolume": "milvus",
+                  "containerPath": "/var/lib/milvus",
+                  "readOnly": false
+              }
+          ],
+          "volumesFrom": [],
+          "dependsOn": [
+              {
+                  "containerName": "milvus-etcd",
+                  "condition": "HEALTHY"
+              },
+              {
+                  "containerName": "milvus-minio",
+                  "condition": "HEALTHY"
+              }
+          ],
+          "logConfiguration": {
+              "logDriver": "awslogs",
+              "options": {
+                  "awslogs-create-group": "true",
+                  "awslogs-group": "/ecs/graphfs",
+                  "awslogs-region": "us-east-1",
+                  "awslogs-stream-prefix": "ecs"
+              },
+              "secretOptions": []
+          },
+          "healthCheck": {
+              "command": [
+                  "CMD",
+                  "curl",
+                  "-f",
+                  "http://localhost:9091/healthz"
+              ],
+              "interval": 30,
+              "timeout": 20,
+              "retries": 3,
+              "startPeriod": 90
+          },
+          "systemControls": []
+      },
+      {
+          "name": "attu",
+          "image": "zilliz/attu:v2.3.1",
+          "cpu": 0,
+          "portMappings": [
+              {
+                  "name": "attu-browser",
+                  "containerPort": 3000,
+                  "hostPort": 3000,
+                  "protocol": "tcp",
+                  "appProtocol": "http"
+              }
+          ],
+          "essential": true,
+          "environment": [
+              {
+                  "name": "MILVUS_URL",
+                  "value": "http://milvus:19530"
+              }
+          ],
+          "environmentFiles": [],
+          "mountPoints": [],
+          "volumesFrom": [],
+          "dependsOn": [
+              {
+                  "containerName": "milvus-standalone",
+                  "condition": "START"
+              }
+          ],
+          "logConfiguration": {
+              "logDriver": "awslogs",
+              "options": {
+                  "awslogs-create-group": "true",
+                  "awslogs-group": "/ecs/graphfs",
+                  "awslogs-region": "us-east-1",
+                  "awslogs-stream-prefix": "ecs"
+              },
+              "secretOptions": []
+          },
+          "systemControls": []
+      }
+  ],
+  "family": "graphfs",
+  "taskRoleArn": "arn:aws:iam::905418022626:role/ecsTaskExecutionRole",
+  "executionRoleArn": "arn:aws:iam::905418022626:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "revision": 31,
+  "volumes": [
+      {
+          "name": "neo4j-data",
+          "efsVolumeConfiguration": {
+              "fileSystemId": "fs-0730149e77d85b985",
+              "rootDirectory": "/neo4j/data"
+          }
+      },
+      {
+          "name": "neo4j-logs",
+          "efsVolumeConfiguration": {
+              "fileSystemId": "fs-0730149e77d85b985",
+              "rootDirectory": "/neo4j/logs"
+          }
+      },
+      {
+          "name": "etcd",
+          "efsVolumeConfiguration": {
+              "fileSystemId": "fs-0730149e77d85b985",
+              "rootDirectory": "/etcd"
+          }
+      },
+      {
+          "name": "minio",
+          "efsVolumeConfiguration": {
+              "fileSystemId": "fs-0730149e77d85b985",
+              "rootDirectory": "/minio"
+          }
+      },
+      {
+          "name": "milvus",
+          "efsVolumeConfiguration": {
+              "fileSystemId": "fs-0730149e77d85b985",
+              "rootDirectory": "/milvus"
+          }
+      }
+  ],
+  "status": "ACTIVE",
+  "requiresAttributes": [
+      {
+          "name": "ecs.capability.execution-role-awslogs"
+      },
+      {
+          "name": "com.amazonaws.ecs.capability.ecr-auth"
+      },
+      {
+          "name": "com.amazonaws.ecs.capability.task-iam-role"
+      },
+      {
+          "name": "ecs.capability.container-health-check"
+      },
+      {
+          "name": "ecs.capability.execution-role-ecr-pull"
+      },
+      {
+          "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+      },
+      {
+          "name": "ecs.capability.task-eni"
+      },
+      {
+          "name": "com.amazonaws.ecs.capability.docker-remote-api.1.29"
+      },
+      {
+          "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+      },
+      {
+          "name": "com.amazonaws.ecs.capability.docker-remote-api.1.24"
+      },
+      {
+          "name": "ecs.capability.efsAuth"
+      },
+      {
+          "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+      },
+      {
+          "name": "ecs.capability.efs"
+      },
+      {
+          "name": "ecs.capability.container-ordering"
+      },
+      {
+          "name": "com.amazonaws.ecs.capability.docker-remote-api.1.25"
+      }
+  ],
+  "placementConstraints": [],
+  "compatibilities": [
+      "EC2",
+      "FARGATE"
+  ],
+  "requiresCompatibilities": [
+      "FARGATE"
+  ],
+  "cpu": "1024",
+  "memory": "8192",
+  "runtimePlatform": {
+      "cpuArchitecture": "X86_64",
+      "operatingSystemFamily": "LINUX"
+  },
+  "registeredAt": "2024-03-20T23:22:13.675Z",
+  "registeredBy": "arn:aws:iam::905418022626:root",
+  "tags": []
+}

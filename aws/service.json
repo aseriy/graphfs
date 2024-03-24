@@ -1,0 +1,601 @@
+{
+    "services": [
+        {
+            "loadBalancers": [
+                {
+                    "targetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/neo4j/f78f3c1c7dd2c103",
+                    "containerName": "neo4j",
+                    "containerPort": 7687
+                },
+                {
+                    "targetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/milvus/0b6574f504daf7e7",
+                    "containerName": "milvus-standalone",
+                    "containerPort": 19530
+                }
+            ]
+                        "serviceRegistries": [],
+            "status": "ACTIVE",
+            "desiredCount": 1,
+            "runningCount": 1,
+            "pendingCount": 0,
+            "launchType": "FARGATE",
+            "platformVersion": "1.4.0",
+            "platformFamily": "Linux",
+            "taskDefinition": "arn:aws:ecs:us-east-1:905418022626:task-definition/graphfs:31",
+            "deploymentConfiguration": {
+                "deploymentCircuitBreaker": {
+                    "enable": true,
+                    "rollback": true
+                },
+                "maximumPercent": 200,
+                "minimumHealthyPercent": 100,
+                "alarms": {
+                    "alarmNames": [],
+                    "enable": false,
+                    "rollback": false
+                }
+            },
+            "deployments": [
+                {
+                    "id": "ecs-svc/6924436798093349906",
+                    "status": "PRIMARY",
+                    "taskDefinition": "arn:aws:ecs:us-east-1:905418022626:task-definition/graphfs:31",
+                    "desiredCount": 1,
+                    "pendingCount": 0,
+                    "runningCount": 1,
+                    "failedTasks": 0,
+                    "createdAt": "2024-03-22T15:29:49.895000-04:00",
+                    "updatedAt": "2024-03-22T19:41:57.647000-04:00",
+                    "launchType": "FARGATE",
+                    "platformVersion": "1.4.0",
+                    "platformFamily": "Linux",
+                    "networkConfiguration": {
+                        "awsvpcConfiguration": {
+                            "subnets": [
+                                "subnet-0327ba5666aa62eb5",
+                                "subnet-04c5c284b69fad66e",
+                                "subnet-09961b43fa141506f",
+                                "subnet-096cab1938c7fc8db",
+                                "subnet-05591feb9c3cfb0c0",
+                                "subnet-0e7f63f56f5181749"
+                            ],
+                            "securityGroups": [
+                                "sg-01554626f49bea8df"
+                            ],
+                            "assignPublicIp": "ENABLED"
+                        }
+                    },
+                    "rolloutState": "COMPLETED",
+                    "rolloutStateReason": "ECS deployment ecs-svc/6924436798093349906 completed.",
+                    "serviceConnectConfiguration": {
+                        "enabled": true,
+                        "namespace": "arn:aws:servicediscovery:us-east-1:905418022626:namespace/ns-5z75rpz4wsrthgpf",
+                        "services": [
+                            {
+                                "portName": "etcd-client-requests",
+                                "discoveryName": "etcd-client-requests",
+                                "clientAliases": [
+                                    {
+                                        "port": 2379,
+                                        "dnsName": "etcd-client-requests"
+                                    }
+                                ]
+                            },
+                            {
+                                "portName": "minio-api",
+                                "discoveryName": "minio-api",
+                                "clientAliases": [
+                                    {
+                                        "port": 9000,
+                                        "dnsName": "minio-api"
+                                    }
+                                ]
+                            },
+                            {
+                                "portName": "milvus-grpc",
+                                "discoveryName": "milvus-grpc",
+                                "clientAliases": [
+                                    {
+                                        "port": 19530,
+                                        "dnsName": "milvus-grpc"
+                                    }
+                                ]
+                            }
+                        ],
+                        "logConfiguration": {
+                            "logDriver": "awslogs",
+                            "options": {
+                                "awslogs-create-group": "true",
+                                "awslogs-group": "/ecs/graphfs",
+                                "awslogs-region": "us-east-1",
+                                "awslogs-stream-prefix": "ecs"
+                            },
+                            "secretOptions": []
+                        }
+                    },
+                    "serviceConnectResources": [
+                        {
+                            "discoveryName": "etcd-client-requests",
+                            "discoveryArn": "arn:aws:servicediscovery:us-east-1:905418022626:service/srv-yhefryj4ya3zseep"
+                        },
+                        {
+                            "discoveryName": "minio-api",
+                            "discoveryArn": "arn:aws:servicediscovery:us-east-1:905418022626:service/srv-r5smx7r5fmlxf6jj"
+                        },
+                        {
+                            "discoveryName": "milvus-grpc",
+                            "discoveryArn": "arn:aws:servicediscovery:us-east-1:905418022626:service/srv-7i2bm7uok7fmvc4l"
+                        }
+                    ]
+                }
+            ],
+            "roleArn": "arn:aws:iam::905418022626:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS",
+            "events": [
+                {
+                    "id": "af3506b5-9fae-44d3-8575-ff4be1d51985",
+                    "createdAt": "2024-03-22T19:41:57.654000-04:00",
+                    "message": "(service graphfs) has reached a steady state."
+                },
+                {
+                    "id": "799feec4-8690-471d-9075-afa613ae6717",
+                    "createdAt": "2024-03-22T19:41:57.653000-04:00",
+                    "message": "(service graphfs) (deployment ecs-svc/6924436798093349906) deployment completed."
+                },
+                {
+                    "id": "5768afcd-a06f-4502-9f6a-06f7fd92de6f",
+                    "createdAt": "2024-03-22T19:38:50.712000-04:00",
+                    "message": "(service graphfs) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/neo4j/f78f3c1c7dd2c103)"
+                },
+                {
+                    "id": "72cb98d8-a239-46f4-afeb-030c86f013c3",
+                    "createdAt": "2024-03-22T19:37:11.275000-04:00",
+                    "message": "(service graphfs) (deployment ecs-svc/6924436798093349906) deployment failed: tasks failed to start."
+                },
+                {
+                    "id": "9ea1785b-575f-43f6-b5d4-1dd42ca2d5d5",
+                    "createdAt": "2024-03-22T19:36:13.948000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task e6e7d9b4c2474d6499229f1dfa087980)."
+                },
+                {
+                    "id": "d7451061-6f3f-44e3-b941-98c7129f1281",
+                    "createdAt": "2024-03-22T19:32:27.324000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 704eec48b9da4d8d9a99c091f8863076)."
+                },
+                {
+                    "id": "e1257849-7b73-4d13-93f6-1d11918a5814",
+                    "createdAt": "2024-03-22T19:31:56.682000-04:00",
+                    "message": "(service graphfs, taskSet ecs-svc/2256772448439899166) has begun draining connections on 2 tasks."
+                },
+                {
+                    "id": "e015f782-d4c3-4012-bdc5-86365111441a",
+                    "createdAt": "2024-03-22T19:31:56.677000-04:00",
+                    "message": "(service graphfs) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/milvus/0b6574f504daf7e7)"
+                },
+                {
+                    "id": "6fe39046-84e3-497f-ba58-e663b3965785",
+                    "createdAt": "2024-03-22T19:31:56.490000-04:00",
+                    "message": "(service graphfs) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/neo4j/f78f3c1c7dd2c103)"
+                },
+                {
+                    "id": "685c8bc8-980c-45a8-a38f-ca4a571c1cea",
+                    "createdAt": "2024-03-22T19:28:44.797000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 551eb3b8300a4d36b1bd2bbbbff8ecaf)."
+                },
+                {
+                    "id": "3937d873-b400-45c7-b3cf-a2a58f6cde32",
+                    "createdAt": "2024-03-22T19:24:59.767000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task fa18abadaa7a4208af1310a35810aa7a)."
+                },
+                {
+                    "id": "0be44c9c-0d03-47f6-8ed3-7aa96c41373b",
+                    "createdAt": "2024-03-22T19:23:51.502000-04:00",
+                    "message": "(service graphfs) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/milvus/0b6574f504daf7e7)"
+                },
+                {
+                    "id": "ac64206c-eed7-4a09-a05d-abcb8f3149e9",
+                    "createdAt": "2024-03-22T19:23:51.199000-04:00",
+                    "message": "(service graphfs) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/neo4j/f78f3c1c7dd2c103)"
+                },
+                {
+                    "id": "f4d71e63-8418-400e-8bf0-24bbe86251ae",
+                    "createdAt": "2024-03-22T19:22:49.771000-04:00",
+                    "message": "(service graphfs) rolling back to deployment ecs-svc/6924436798093349906."
+                },
+                {
+                    "id": "ad0a661a-b004-4559-a40c-0e52f16c669f",
+                    "createdAt": "2024-03-22T19:22:49.770000-04:00",
+                    "message": "(service graphfs) (deployment ecs-svc/2256772448439899166) deployment failed: tasks failed to start."
+                },
+                {
+                    "id": "183dfd17-e9b8-4c7c-8846-b8898dc12c03",
+                    "createdAt": "2024-03-22T19:21:27.940000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 0cc1bc55264f48679ef8ef103fc102d5)."
+                },
+                {
+                    "id": "a8934cd4-d8da-4e42-9df5-94c30ce68fa6",
+                    "createdAt": "2024-03-22T19:17:30.367000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 148f09f3d8fa4c10be9580fd6004e87d)."
+                },
+                {
+                    "id": "dfb2265c-1a55-47db-b924-104e4f210fe8",
+                    "createdAt": "2024-03-22T19:17:09.146000-04:00",
+                    "message": "(service graphfs, taskSet ecs-svc/6924436798093349906) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "20a6d7a9-6bc7-452f-8810-3ca5f6c6e01c",
+                    "createdAt": "2024-03-22T19:17:09.141000-04:00",
+                    "message": "(service graphfs) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/neo4j/f78f3c1c7dd2c103)"
+                },
+                {
+                    "id": "bc8cad58-c6f2-48fb-955c-420444887099",
+                    "createdAt": "2024-03-22T19:13:52.847000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 08ab9bfe05974cfe9420c04d8fc60601)."
+                },
+                {
+                    "id": "d1a57e9f-19ae-4357-8213-a67633245f5a",
+                    "createdAt": "2024-03-22T19:10:06.564000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task e9fa735cc27b4229ae70381fe5543eab)."
+                },
+                {
+                    "id": "7109321b-c999-4f39-9943-66c819699198",
+                    "createdAt": "2024-03-22T18:34:09.975000-04:00",
+                    "message": "(service graphfs) has reached a steady state."
+                },
+                {
+                    "id": "39b7bd04-a12f-40f7-a304-d57c9d13e3fd",
+                    "createdAt": "2024-03-22T18:34:09.974000-04:00",
+                    "message": "(service graphfs) (deployment ecs-svc/6924436798093349906) deployment completed."
+                },
+                {
+                    "id": "b9141f7e-b987-4eed-aba0-414ea89fb4f5",
+                    "createdAt": "2024-03-22T18:32:46.519000-04:00",
+                    "message": "(service graphfs) stopped 1 pending tasks."
+                },
+                {
+                    "id": "ffe77a7b-4f88-45a0-898c-eb9b1c47a743",
+                    "createdAt": "2024-03-22T18:32:39.527000-04:00",
+                    "message": "(service graphfs) rolling back to deployment ecs-svc/6924436798093349906."
+                },
+                {
+                    "id": "c83c21c3-5bc4-4cd7-af5c-560fd5d969d1",
+                    "createdAt": "2024-03-22T18:32:39.526000-04:00",
+                    "message": "(service graphfs) (deployment ecs-svc/2915020734462266031) deployment failed: tasks failed to start."
+                },
+                {
+                    "id": "d9178e00-2426-4320-af6c-29b50a838537",
+                    "createdAt": "2024-03-22T18:32:20.235000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 211e097c4e8a4c419042ba99326c0f04)."
+                },
+                {
+                    "id": "2e6e3893-069e-4051-8c8c-ff174ea6d3d4",
+                    "createdAt": "2024-03-22T18:24:10.631000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task f133c4b143504e89bd75ae47c2420024)."
+                },
+                {
+                    "id": "d1d2b1f7-0952-4d00-9638-62afb88f600d",
+                    "createdAt": "2024-03-22T18:20:13.568000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task a1ab54917f4746d7a30c5fe45c9a82c5)."
+                },
+                {
+                    "id": "5bb90e76-3c92-4f53-80d2-b02ce2b4bc55",
+                    "createdAt": "2024-03-22T18:16:48.710000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 3bea75ab950a4cc6bc5a457fb576e543)."
+                },
+                {
+                    "id": "8bf44850-0bf3-4ff2-9668-d541e0c768dc",
+                    "createdAt": "2024-03-22T18:11:49.660000-04:00",
+                    "message": "(service graphfs) has reached a steady state."
+                },
+                {
+                    "id": "d20bf2c7-8cbc-46d4-ba98-201945dda10d",
+                    "createdAt": "2024-03-22T18:11:49.659000-04:00",
+                    "message": "(service graphfs) (deployment ecs-svc/6924436798093349906) deployment completed."
+                },
+                {
+                    "id": "539db592-7292-4359-b1b1-2f7f21b7d25f",
+                    "createdAt": "2024-03-22T18:10:24.812000-04:00",
+                    "message": "(service graphfs) stopped 1 pending tasks."
+                },
+                {
+                    "id": "3d6e6700-8782-46d7-8977-2089414fb57c",
+                    "createdAt": "2024-03-22T18:10:17.972000-04:00",
+                    "message": "(service graphfs) rolling back to deployment ecs-svc/6924436798093349906."
+                },
+                {
+                    "id": "54627122-516a-450b-b10e-94a9435c38e7",
+                    "createdAt": "2024-03-22T18:10:17.971000-04:00",
+                    "message": "(service graphfs) (deployment ecs-svc/3332736143713150032) deployment failed: tasks failed to start."
+                },
+                {
+                    "id": "a23fe102-440c-420f-b723-4bbe3e2187d5",
+                    "createdAt": "2024-03-22T18:09:30.924000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 5e7bf2032f8e410290a3dca16cab9a58)."
+                },
+                {
+                    "id": "9808c539-ad2d-4333-9d5f-892a00cfbcbe",
+                    "createdAt": "2024-03-22T18:01:40.094000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 47f8a2b9b52e4e98ae720184d268ed17)."
+                },
+                {
+                    "id": "2c10aa8d-9d30-4a05-b03a-6b03c43f5f47",
+                    "createdAt": "2024-03-22T17:57:53.704000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 9ab1c7b3627240999b3ede1dfff2ad2d)."
+                },
+                {
+                    "id": "9adf1596-d0eb-48c3-8f51-e30e90852501",
+                    "createdAt": "2024-03-22T17:54:27.077000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 6e732338fc8046738bcf0324389630ed)."
+                },
+                {
+                    "id": "c7728490-32a8-4948-8060-7fbc1d195aac",
+                    "createdAt": "2024-03-22T15:40:02.245000-04:00",
+                    "message": "(service graphfs) has reached a steady state."
+                },
+                {
+                    "id": "53a3c3e6-c9c0-4161-a56a-768d0606815c",
+                    "createdAt": "2024-03-22T15:40:02.244000-04:00",
+                    "message": "(service graphfs) (deployment ecs-svc/6924436798093349906) deployment completed."
+                },
+                {
+                    "id": "bb3c5c89-a138-4c68-921a-cef92c508409",
+                    "createdAt": "2024-03-22T15:36:58.243000-04:00",
+                    "message": "(service graphfs) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/neo4j/f78f3c1c7dd2c103)"
+                },
+                {
+                    "id": "07cbc403-3fc2-42c3-beec-90f6ea135371",
+                    "createdAt": "2024-03-22T15:33:52.146000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 43d3c5c715144865aa758566f11e984d)."
+                },
+                {
+                    "id": "0352eda2-550a-4e69-b970-aaf72cd1a058",
+                    "createdAt": "2024-03-22T15:30:13.356000-04:00",
+                    "message": "(service graphfs, taskSet ecs-svc/1356550821281409809) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "ea756558-f754-4421-bbb9-9105544f437f",
+                    "createdAt": "2024-03-22T15:30:13.352000-04:00",
+                    "message": "(service graphfs) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/neo4j/f78f3c1c7dd2c103)"
+                },
+                {
+                    "id": "49edd794-64fe-4329-aa31-8f242bbfa8d1",
+                    "createdAt": "2024-03-22T15:30:04.457000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task a15fd0d5fdb641caa1a886fe21fb8c7e)."
+                },
+                {
+                    "id": "f9c2a4eb-572f-4700-bff6-0b6545e7a490",
+                    "createdAt": "2024-03-22T15:27:29.792000-04:00",
+                    "message": "(service graphfs) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/neo4j/f78f3c1c7dd2c103)"
+                },
+                {
+                    "id": "26bdcabd-1e10-4360-9fa5-857d92e9b349",
+                    "createdAt": "2024-03-22T15:25:24.224000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 3f9b47a1f5304812837b8830d249235c)."
+                },
+                {
+                    "id": "3d2c5919-4683-4f25-8b8a-665e331079ae",
+                    "createdAt": "2024-03-22T15:21:37.383000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task c1c45ea1055f49c397f0bb98ade3afe2)."
+                },
+                {
+                    "id": "b910856e-58bf-406a-a86a-29e494526969",
+                    "createdAt": "2024-03-22T15:19:19.397000-04:00",
+                    "message": "(service graphfs, taskSet ecs-svc/9788254013917242831) has begun draining connections on 2 tasks."
+                },
+                {
+                    "id": "b4926d40-ff41-4432-b5e2-329dd4d08f19",
+                    "createdAt": "2024-03-22T15:19:19.392000-04:00",
+                    "message": "(service graphfs) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/milvus/0b6574f504daf7e7)"
+                },
+                {
+                    "id": "73fafa19-2917-40fd-ae90-680f3a058d45",
+                    "createdAt": "2024-03-22T15:19:19.221000-04:00",
+                    "message": "(service graphfs) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/neo4j/f78f3c1c7dd2c103)"
+                },
+                {
+                    "id": "16427b01-cd7b-44ee-be79-8c506b9d00f3",
+                    "createdAt": "2024-03-22T15:17:51.447000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 7d524cd8516047ebbe4988ccf0de14a6)."
+                },
+                {
+                    "id": "574a7efb-ade4-4545-972b-0a2538556048",
+                    "createdAt": "2024-03-22T15:16:43.606000-04:00",
+                    "message": "(service graphfs) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/milvus/0b6574f504daf7e7)"
+                },
+                {
+                    "id": "a45f2ba8-c508-42fa-ba2e-399bc25f62c9",
+                    "createdAt": "2024-03-22T15:16:43.283000-04:00",
+                    "message": "(service graphfs) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/neo4j/f78f3c1c7dd2c103)"
+                },
+                {
+                    "id": "f2be554a-17f5-43be-b38b-397519d0d52c",
+                    "createdAt": "2024-03-22T15:15:01.298000-04:00",
+                    "message": "(service graphfs) rolling back to deployment ecs-svc/1356550821281409809."
+                },
+                {
+                    "id": "5f6cb976-f8d4-498f-83c1-bb4330141721",
+                    "createdAt": "2024-03-22T15:15:01.297000-04:00",
+                    "message": "(service graphfs) (deployment ecs-svc/9788254013917242831) deployment failed: tasks failed to start."
+                },
+                {
+                    "id": "2f881adc-095a-4d60-8294-7e91dcec7370",
+                    "createdAt": "2024-03-22T15:13:47.809000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 2bed5e9cf6214ef08f9fa75f2cb90179)."
+                },
+                {
+                    "id": "0deea67c-c781-404a-aa9b-13aa995c3d28",
+                    "createdAt": "2024-03-22T15:10:14.786000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 4c35356b60c640a89741c0c43423ca47)."
+                },
+                {
+                    "id": "0110239d-7c5d-4a88-bf3b-9f2c0eec4e3c",
+                    "createdAt": "2024-03-22T15:10:05.174000-04:00",
+                    "message": "(service graphfs, taskSet ecs-svc/9788254013917242831) has begun draining connections on 2 tasks."
+                },
+                {
+                    "id": "7fb8193a-bb2d-46b3-8c1e-0ab08855f985",
+                    "createdAt": "2024-03-22T15:10:05.169000-04:00",
+                    "message": "(service graphfs) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/milvus/0b6574f504daf7e7)"
+                },
+                {
+                    "id": "0be372ca-1727-44dc-8a91-9214d35e43e5",
+                    "createdAt": "2024-03-22T15:10:05.029000-04:00",
+                    "message": "(service graphfs) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/neo4j/f78f3c1c7dd2c103)"
+                },
+                {
+                    "id": "a238d32a-3723-455a-9aa2-02213d2a75a4",
+                    "createdAt": "2024-03-22T15:09:55.557000-04:00",
+                    "message": "(service graphfs) has stopped 1 running tasks: (task d455c140ac194cb88c4af40802f05bcb)."
+                },
+                {
+                    "id": "305d4b8f-4987-4376-84c2-e07c3cd57e91",
+                    "createdAt": "2024-03-22T15:09:55.491000-04:00",
+                    "message": "(service graphfs) (port 19530) is unhealthy in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/milvus/0b6574f504daf7e7) due to (reason Health checks failed)."
+                },
+                {
+                    "id": "36929941-a9ac-442e-bf2a-7cb319655c7c",
+                    "createdAt": "2024-03-22T15:06:52.625000-04:00",
+                    "message": "(service graphfs) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/milvus/0b6574f504daf7e7)"
+                },
+                {
+                    "id": "8d635d46-4521-4a68-8e4e-fbdc7358eeb6",
+                    "createdAt": "2024-03-22T15:06:52.271000-04:00",
+                    "message": "(service graphfs) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/neo4j/f78f3c1c7dd2c103)"
+                },
+                {
+                    "id": "b9d114e3-b1a7-4228-a50a-e421c77dfa11",
+                    "createdAt": "2024-03-22T15:04:26.424000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task d455c140ac194cb88c4af40802f05bcb)."
+                },
+                {
+                    "id": "1f98a737-cde9-4ecb-b587-430ec7098c5e",
+                    "createdAt": "2024-03-22T15:00:38.718000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 63190eb14671417daf9aaf94cd5a2349)."
+                },
+                {
+                    "id": "9ab75799-620e-41e7-a472-a98aa509f6fb",
+                    "createdAt": "2024-03-22T14:59:38.074000-04:00",
+                    "message": "(service graphfs, taskSet ecs-svc/1356550821281409809) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "ba775823-9c2e-4daf-b934-5a33445b4c10",
+                    "createdAt": "2024-03-22T14:59:38.069000-04:00",
+                    "message": "(service graphfs) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/neo4j/f78f3c1c7dd2c103)"
+                },
+                {
+                    "id": "6826ff1c-59ec-49b3-ae45-c353f2f7a4d3",
+                    "createdAt": "2024-03-22T14:56:36.853000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 5f81f5fb628c4bf6972e525357d33773)."
+                },
+                {
+                    "id": "cf41ca69-abb6-444a-b8cc-1a18669d3708",
+                    "createdAt": "2024-03-22T14:51:02.405000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task fadfb3a8055e4fb2997145057fec7658)."
+                },
+                {
+                    "id": "835db72f-78ed-4b30-9bf0-6a83e4a4d07f",
+                    "createdAt": "2024-03-22T14:47:17.110000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 3579f823be85416980caa9a1ca7564c0)."
+                },
+                {
+                    "id": "3607a823-b6de-4e6d-9ecc-e2b6435cb76d",
+                    "createdAt": "2024-03-22T14:43:30.487000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task a24b004eccdd4a2faf36165f8190db24)."
+                },
+                {
+                    "id": "ef6ee0cc-bade-479a-91bd-3254203a9b89",
+                    "createdAt": "2024-03-22T14:12:24.936000-04:00",
+                    "message": "(service graphfs) has reached a steady state."
+                },
+                {
+                    "id": "8da90d04-6ff5-448e-9bee-e9dd1ff0d401",
+                    "createdAt": "2024-03-22T14:12:24.935000-04:00",
+                    "message": "(service graphfs) (deployment ecs-svc/1356550821281409809) deployment completed."
+                },
+                {
+                    "id": "490b577c-a850-41c9-afcf-a11db120d106",
+                    "createdAt": "2024-03-21T16:53:52.994000-04:00",
+                    "message": "(service graphfs) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/neo4j/f78f3c1c7dd2c103)"
+                },
+                {
+                    "id": "d668cdb5-a690-47fd-acae-372a2233a58e",
+                    "createdAt": "2024-03-21T16:52:53.538000-04:00",
+                    "message": "(service graphfs) (deployment ecs-svc/1356550821281409809) deployment failed: tasks failed to start."
+                },
+                {
+                    "id": "a00ea7b1-2b17-410d-bea7-32ea1d8b1933",
+                    "createdAt": "2024-03-21T16:51:26.911000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task ef20ea076a0943d9a3d9f83115a88ae4)."
+                },
+                {
+                    "id": "56404160-c9fb-4528-bf3d-031d71f7b9b0",
+                    "createdAt": "2024-03-21T16:50:09.050000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 2baf6aba9d8f4becb246c28117891e7f)."
+                },
+                {
+                    "id": "75d0f20f-ac84-489e-87eb-8b45ff27636d",
+                    "createdAt": "2024-03-21T16:47:23.028000-04:00",
+                    "message": "(service graphfs) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/neo4j/f78f3c1c7dd2c103)"
+                },
+                {
+                    "id": "0bd916a5-7977-40a8-a6f5-3ff9695f1d3a",
+                    "createdAt": "2024-03-21T16:47:22.906000-04:00",
+                    "message": "(service graphfs, taskSet ecs-svc/1356550821281409809) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "972afc8d-47ec-43eb-acef-0cc24b811009",
+                    "createdAt": "2024-03-21T16:47:22.902000-04:00",
+                    "message": "(service graphfs) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/neo4j/f78f3c1c7dd2c103)"
+                },
+                {
+                    "id": "cc39169b-19f6-4765-ab7c-4c647d82d502",
+                    "createdAt": "2024-03-21T16:46:26.216000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 15cc4e54163a425485fed3b44f3c6b01). Amazon ECS replaced 1 tasks due to an unhealthy status."
+                },
+                {
+                    "id": "71629689-8695-40bd-915e-cd54e03123eb",
+                    "createdAt": "2024-03-21T16:42:50.356000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task ac0571a3795f4114986309e4d047594c). Amazon ECS replaced 1 tasks due to an unhealthy status."
+                },
+                {
+                    "id": "11486ac4-f155-4f4c-a644-e7b810843641",
+                    "createdAt": "2024-03-21T16:42:32.058000-04:00",
+                    "message": "(service graphfs) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:905418022626:targetgroup/neo4j/f78f3c1c7dd2c103)"
+                },
+                {
+                    "id": "6b9fb509-a7b6-4229-86d7-94970c4ace9e",
+                    "createdAt": "2024-03-21T16:39:54.177000-04:00",
+                    "message": "(service graphfs) has started 1 tasks: (task 3da0d51e4c3941cb919a4f6428b09b3a)."
+                }
+            ],
+            "createdAt": "2024-03-21T16:39:46.232000-04:00",
+            "placementConstraints": [],
+            "placementStrategy": [],
+            "networkConfiguration": {
+                "awsvpcConfiguration": {
+                    "subnets": [
+                        "subnet-0327ba5666aa62eb5",
+                        "subnet-04c5c284b69fad66e",
+                        "subnet-09961b43fa141506f",
+                        "subnet-096cab1938c7fc8db",
+                        "subnet-05591feb9c3cfb0c0",
+                        "subnet-0e7f63f56f5181749"
+                    ],
+                    "securityGroups": [
+                        "sg-01554626f49bea8df"
+                    ],
+                    "assignPublicIp": "ENABLED"
+                }
+            },
+            "healthCheckGracePeriodSeconds": 10,
+            "schedulingStrategy": "REPLICA",
+            "deploymentController": {
+                "type": "ECS"
+            },
+            "createdBy": "arn:aws:iam::905418022626:root",
+            "enableECSManagedTags": true,
+            "propagateTags": "NONE",
+            "enableExecuteCommand": false
+        }
+    ],
+    "failures": []
+}
