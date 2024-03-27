@@ -1,10 +1,10 @@
 import argparse
 import json
-from binstore import BinaryStore
+from graphfs.graphstore import GraphStore
 from util.neo4j_helpers import get_credentials
 
 creds = get_credentials('etc', 'config.yml')
-bs = BinaryStore(creds)
+bs = GraphStore(creds)
 
 
 def find_similar(limit = None):
