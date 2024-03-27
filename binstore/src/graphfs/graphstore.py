@@ -99,6 +99,27 @@ class GraphStore():
         return total_deleted
 
 
+    def is_container(self, sha256):
+        valid = False
+
+        with self.graph.session() as s:
+            q = f'''
+                MATCH (c:Container {{sha256: "{sha256}"}})
+                RETURN c
+                '''
+                
+            result = s.run(q)
+            if result.single() is not None:
+                valid = True
+            s.close()
+
+        return valid
+
+
+
+
+
+
     # TODO: DO NOT ATTEMPT TO CONTAINERIZE ZERO-BYTE NODES
     # TODO: The bigger question here is, should there even be a Container for a ZERO byte FileNode
     #       and if so, how to reflect this in the graph schema.

@@ -68,19 +68,26 @@ class VectorStore():
         param = {
           "metric_type": "HAMMING"
         },
-        limit=2
+        limit=10
       )
+      print("SIMILARITY SEARCH: ", s_results)
 
       if len(s_results) > 0:
-        # print(s_results[0].ids)
-        # print(s_results[0].distances)
+        print(s_results[0].ids)
+        print(s_results[0].distances)
         if len(s_results[0].ids) > 1:
-          if s_results[0].distances[1] < similarity_threshold:
-            similar_vector = {
-              'sha256':   s_results[0].ids[1],
-              'distance': s_results[0].distances[1]
-            }
-            # print(json.dumps(similar_vector, indent=2))
+          similar_vector = []
+          # Skip the first element as it is the one we're processing here
+          s_results[0].ids.pop(0)
+          s_results[0].distances.pop(0)
+          for (sha256, dist) in zip(s_results[0].ids, s_results[0].distances):
+            if dist < similarity_threshold:
+              similar_vector.append({
+                'sha256':   sha256,
+                'distance': dist
+              })
+              
+          # print(json.dumps(similar_vector, indent=2))
 
     return similar_vector
 

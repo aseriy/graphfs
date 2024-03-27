@@ -24,21 +24,34 @@ def find_similar(limit = None):
           if candidate is None:
               done = True
 
-      # print("IF: ", done)
       if done is False:
         similar = bs.find_similar_container(candidate)
+        print("SIMILAR: ", json.dumps(similar, indent=2))
+        similarity_found = False
         if similar is not None:
-            container_similar = {
-                'sha256': candidate,
-                'similar': similar
-            }
-            print(json.dumps(container_similar, indent=2))
-            meta, buf = bs.deltalize(similar['sha256'], candidate)
-            print(len(buf), buf)
+            for s in similar:
+                # Sometimes, the similarity search may return a SHA256 and
+                # there is no Container in the graph identified by it.
+                # First, check SHA256 is valid.
+                # If none of the search results are valid Containers, then
+                # bail out.
+                if bs.is_container(s['sha256']):
+                    container_similar = {
+                        'candidate': candidate,
+                        'similar': s['sha256']
+                    }
+                    print("FOUND SIMILARITY: ", json.dumps(container_similar, indent=2))
+                    meta, buf = bs.deltalize(s['sha256'], candidate)
+                    print(len(buf), buf)
 
-        else:
+                    similarity_found = True
+                    break
+
+        if similar is None or similarity_found is False:
+            print("MARKING AS SIMILARITY SEARCHED: ", candidate)
             bs.mark_similarity_searched(candidate)
       
+
       if limit is not None:
          limit -= 1
          if limit == 0:
