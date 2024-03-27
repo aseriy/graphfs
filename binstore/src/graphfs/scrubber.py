@@ -4,10 +4,7 @@ import os
 import pathlib
 import json
 from util.neo4j_helpers import get_credentials
-
-
-# creds = get_credentials(os.path.join(os.path.dirname(__file__), '../../../etc'), 'config.yml')
-# bs = BinaryStore(creds)
+from graphfs.graphstore import GraphStore
 
 # SCRUBBER
 # At the moment, there is one scrubbing task.
@@ -28,27 +25,29 @@ from util.neo4j_helpers import get_credentials
 # Main
 #
 if __name__ == "__main__":
-    print(os.sys.path)
     parser = argparse.ArgumentParser(
             prog = __file__,
             description = "Scrub the system."
         )
 
-    # # parser.add_argument("-b", "--batch_size", type=int, required=False, default=10,
-    # #                     help=""
-    # #                 )
-    # # parser.add_argument("-s", "--source", type=str, required=True,
-    # #                     help="Source path. If Source is a directory, all files under it will be copied."
-    # #                 )
+    # parser.add_argument("-b", "--batch_size", type=int, required=False, default=10,
+    #                     help=""
+    #                 )
+    # parser.add_argument("-s", "--source", type=bool, required=false,
+    #                     help="Source path. If Source is a directory, all files under it will be copied."
+    #                 )
 
-    # # args, unknown = parser.parse_known_args()
+    args, unknown = parser.parse_known_args()
 
     # dest_dir = args.dir
     # src_path = args.source
     # print(dest_dir)
     # print(src_path)
 
-    # bs.scrub()
+    creds = get_credentials(os.path.join(os.path.dirname(__file__), '../../../etc'), 'config.yml')
+    bs = GraphStore(creds)
+
+    bs.scrub()
 
     exit(0)
 

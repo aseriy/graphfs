@@ -9,8 +9,8 @@ from fastapi import (
   File, UploadFile
 )
 from util.neo4j_helpers import get_credentials
-from binstore.filestore import FileStore
-from binstore.binstore import BinaryStore
+from graphfs.filestore import FileStore
+from graphfs.graphstore import GraphStore
 from src.models.binstore import (
     FileNode
 )
@@ -18,7 +18,7 @@ from src.models.binstore import (
 router = APIRouter()
 
 creds = get_credentials('../etc', 'config.yml')
-bs = BinaryStore(creds)
+bs = GraphStore(creds)
 fs = FileStore(creds)
 
 

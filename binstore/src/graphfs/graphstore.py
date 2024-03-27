@@ -11,7 +11,7 @@ from neo4j import GraphDatabase
 from util.neo4j_helpers import get_credentials, get_node_ids_by_label_name
 import detools
 import io
-from binstore.vectorstore import VectorStore
+from graphfs.vectorstore import VectorStore
 
 
 store_perma_dir = 'perma'
@@ -32,7 +32,7 @@ DEFAULT_BATCH_SIZE = 5000
 # CREATE INDEX ON:MUTATED(size_data_ratio)
 #
 
-class BinaryStore():
+class GraphStore():
     def __init__(self, creds):
         self.validator = re.compile('[0-9a-f]+')
         bin_store_dir = creds['bin_store_dir']
@@ -667,17 +667,47 @@ class BinaryStore():
 
 
 
-    def scrub(self, batch_size=10):
-        with self.graph.session() as s:
-            q = f'''
-                MATCH (c:Container) WHERE NOT (c)<-[:STORED_IN]-(:FileNode)
-                RETURN c LIMIT {batch_size}
-                '''
+    def scrub(self, batch_size=1000):
+        total_deleted = 0
 
-            print(q)
-            # result = s.run(q, c1 = c1, c2 = c2, delta = buffer)
-            # print(result.peek())
-            s.close()
+        last_batch_size = batch_size
+
+        while last_batch_size > 0:
+            with self.graph.session() as s:
+                q = f'''
+                    MATCH (c:Container) WHERE NOT (c)<-[:STORED_IN]-(:FileNode)
+                    RETURN c LIMIT {batch_size}
+                    '''
+
+                print(q)
+                result = s.run(q)
+                to_delete_list = result.fetch(batch_size)
+                last_batch_size = len(to_delete_list)
+
+                if last_batch_size > 0:
+
+                    for r in to_delete_list:
+                        container = r.get("c")
+                        sha256 = container.get("sha256")
+
+                        q = f'''
+                            MATCH (c:Container {{sha256: "{sha256}"}})
+                            DELETE c
+                            '''
+
+                        delete_result = s.run(q)
+                        cache_path = os.path.join(self.bin_store_cache_dir, self.hex_to_path(sha256))
+                        if os.path.exists(cache_path):
+                            print("Deleting cached container: ", cache_path)
+                            os.remove(cache_path)
+                        else:
+                            print("No file found: ", cache_path)
+
+                print(last_batch_size)
+                total_deleted += last_batch_size
+                s.close()
+
+        print("TOTAL DELETED: ", total_deleted)
 
         return None
     
