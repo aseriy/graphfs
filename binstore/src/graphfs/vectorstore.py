@@ -68,7 +68,7 @@ class VectorStore():
         param = {
           "metric_type": "HAMMING"
         },
-        limit=10
+        limit=1000
       )
       print("SIMILARITY SEARCH: ", s_results)
 
