@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from shutil import rmtree, copytree
 import json
-from binstore.upload import upload_dir as upload_commit
+from graphfs.upload import upload_dir as upload_commit
 
 
 def clone(url, path):

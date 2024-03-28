@@ -89,6 +89,9 @@ class VectorStore():
               
           # print(json.dumps(similar_vector, indent=2))
 
+          if len(similar_vector) < 1:
+            similar_vector = None
+
     return similar_vector
 
         
