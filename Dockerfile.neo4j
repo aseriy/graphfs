@@ -1,0 +1,4 @@
+FROM neo4j
+
+COPY neo4j.conf /var/lib/neo4j/conf
+

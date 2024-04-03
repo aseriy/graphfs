@@ -99,6 +99,24 @@ class GraphStore():
         return total_deleted
 
 
+    def is_filenode(self, sha256):
+        valid = False
+
+        with self.graph.session() as s:
+            q = f'''
+                MATCH (fn:FileNode {{sha256: "{sha256}"}})
+                RETURN fn
+                '''
+                
+            result = s.run(q)
+            if result.single() is not None:
+                valid = True
+            s.close()
+
+        return valid
+
+
+
     def is_container(self, sha256):
         valid = False
 
@@ -251,6 +269,11 @@ class GraphStore():
     def put_file_node(self, data):
         sum, data_path = self.buffer_to_path(data)
 
+        # Check if a FileNode with the same SHA256 already exists
+        if self.is_filenode(sum):
+            print(f"FileNode exists: {sum}")
+            return sum
+
         cache_path = os.path.join(self.bin_store_cache_dir, data_path)
         if not os.path.exists(cache_path):
             cache_dir = os.path.dirname(cache_path)
@@ -268,7 +291,7 @@ class GraphStore():
         m = magic.Magic(mime=True)
         mp = m.from_file(cache_path)
 
-        # Create / update the File node in the graph
+        # Create / update the FileNode in the graph
         with self.graph.session() as s:
             q = '''
                 MERGE (fn:FileNode {sha256: $sha256})
@@ -286,6 +309,9 @@ class GraphStore():
             result = s.run(q, sha256 = sum, mp = mp, cache = data_path, size = len(data))
             print (result.peek())
             s.close()
+
+        print(f"Containerizing new FileNode: {sum}")
+        sum = self.containerize_node(sum)
 
         return sum
 
