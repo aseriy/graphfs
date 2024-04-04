@@ -85,6 +85,7 @@ def commit_tracker_write(path, data):
 
   f = open(path, "w")
   f.write(commits_done)
+  f.write("\n")
   f.close()
 
   return None
@@ -137,6 +138,7 @@ if __name__ == "__main__":
 
     print("Commits: ", len(all_commits))
     all_commits = list(set(all_commits))
+    all_commits.sort(key=lambda c: c.committed_date)
     print("Commits unique: ", len(all_commits))
     print("Commit tracker file: ", commit_tracker)
 

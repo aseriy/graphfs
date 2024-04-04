@@ -70,6 +70,7 @@ class FileStore():
     with self.graph.session() as s:
       result = s.run("\n".join([q, r]))
       file_node = result.single().get('fn').get('sha256')
+      print(file_node)
 
     return file_node
 

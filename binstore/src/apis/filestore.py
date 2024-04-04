@@ -63,9 +63,6 @@ def file_upload(path: str, file: UploadFile = File(None)):
 
         fn = fs.create_file(signature, PurePath(path).joinpath(file.filename))
 
-        # TODO: This shouldn't really belong here but in the FileNode creation code
-        # bs.containerize_node(fn)
-    
     return None
 
 

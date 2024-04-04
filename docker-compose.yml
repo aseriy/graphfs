@@ -12,7 +12,7 @@ services:
   # docker run -d --name neo4j --publish=7474:7474 --publish=7687:7687 --volume=$HOME/git/binstore/neo4j-data:/data neo4j
   neo4j:
     container_name: neo4j
-    image: 905418022626.dkr.ecr.us-east-1.amazonaws.com/neo4j:graphfs
+    image: neo4j
     ports:
       - "7474:7474"
       - "7687:7687"
