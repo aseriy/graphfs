@@ -47,6 +47,12 @@ def checkout(repo, commit_id):
   commit_path = os.path.join(
     os.path.dirname(os.path.dirname(repo.working_tree_dir)),
     'tmp', str(commit_id))
+
+  # Just in case there is debris from some previous checkout,
+  # nuke it out.
+  if os.path.isdir(commit_path):
+    rmtree(commit_path)
+
   copytree(repo.working_tree_dir, commit_path, ignore = ignore_dot_git)
 
   return commit_path

@@ -311,7 +311,8 @@ class GraphStore():
             s.close()
 
         print(f"Containerizing new FileNode: {sum}")
-        print(self.containerize_node(sum))
+        containerize_result = self.containerize_node(sum)
+        print("Result: ", containerize_result)
 
         return sum
 
