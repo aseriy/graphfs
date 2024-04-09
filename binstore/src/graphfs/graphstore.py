@@ -20,6 +20,7 @@ store_cache_dir = 'cache'
 # This is temporarily here, should be moved to a config file at some point
 # store container size set to 1k
 container_size = 1024
+container_chunking_batch_size = 100
 DEFAULT_BATCH_SIZE = 5000
 
 
@@ -199,28 +200,79 @@ class GraphStore():
                 sha256_list,
                 data_list
             ]
+            # TODO: temporarily disabled
             insert_result = self.vs.insert(entities)
-            print(insert_result)
+            print("Vectors saved: ", insert_result)
 
 
         with self.graph.session() as s:
-            q = '''
-                MATCH (n:FileNode {sha256: $sha256})-[r:STORED_IN]->(c:Container)
+            # q = f'''
+            #     MATCH (n:FileNode {{sha256: "{node_sum}"}})-[r:STORED_IN]->(c:Container)
+            #     DELETE r
+            #     WITH n, $container_list AS container_list
+            #     UNWIND container_list AS cl
+            #     MERGE (c:Container {{sha256: cl.sha256}})
+            #     SET c.ctime = datetime(), c.size = cl.size
+            #     MERGE (n)-[:STORED_IN {{idx: cl.idx}}]->(c)
+            #     RETURN n
+            #     '''
+
+
+            q = f'''
+                MATCH (fn:FileNode {{sha256: "{node_sum}"}})-[r:STORED_IN {{idx: 0}}]->(c:Container)
                 DELETE r
-                WITH n, $container_list AS container_list
-                UNWIND container_list AS cl
-                MERGE (c:Container {sha256: cl.sha256})
-                SET c.ctime = datetime(), c.size = cl.size
-                MERGE (n)-[:STORED_IN {idx: cl.idx}]->(c)
-                RETURN n
+                RETURN fn, c
                 '''
-
             print(q)
+            result = s.run(q)
 
-            result = s.run(q, sha256 = node_sum, container_list = container_list)
-            print (result.peek())
-            ret_node = result.single().get('n')
-            s.close()
+            batch_list = []            
+            while len(container_list) > 0:
+                batch = container_list[:container_chunking_batch_size]
+                batch_list.append(batch)
+                del container_list[:container_chunking_batch_size]
+
+            print("batch_list: ", len(batch_list))
+            idx = 0
+            for batch in batch_list:
+                q = f'''
+                    MATCH (n:FileNode {{sha256: "{node_sum}"}})
+                    WITH n, $container_list AS container_list
+                    UNWIND container_list AS cl
+                    MERGE (c:Container {{sha256: cl.sha256}})
+                    ON CREATE SET c.ctime = datetime(), c.size = cl.size
+                    MERGE (n)-[:STORED_IN {{idx: cl.idx}}]->(c)
+                    RETURN n
+                    '''
+                print(q)
+                result = s.run(q, container_list = batch)
+                print(result)
+            
+
+            # q = f'''
+            #     MATCH (f:Regular)-[r:REFERENCES]->(fn:FileNode {{sha256: "{node_sum}"}})
+            #     MATCH (tmp:__FileNode) WHERE fn.sha256=tmp.sha256
+            #     WITH f, fn, tmp, COLLECT(r) as refs
+            #     UNWIND refs as ref
+            #     MERGE (f)-[r:REFERENCES]->(tmp)
+            #     SET r +=properties(ref)
+            #     DELETE ref
+            #     WITH f,fn,tmp
+            #     DETACH DELETE fn
+            #     SET tmp:FileNode
+            #     REMOVE tmp:__FileNode
+            #     RETURN f,tmp
+            #     '''
+            # print(q)
+            # result = s.run(q)
+            # print(result)
+
+
+
+            # result = s.run(q, container_list = container_list)
+            # print (result.peek())
+            # ret_node = result.single().get('n')
+            # s.close()
 
 
         return ret_node
@@ -310,9 +362,10 @@ class GraphStore():
             print (result.peek())
             s.close()
 
-        print(f"Containerizing new FileNode: {sum}")
-        containerize_result = self.containerize_node(sum)
-        print("Result: ", containerize_result)
+        # TODO: temporarily disabled
+        # print(f"Containerizing new FileNode: {sum}")
+        # containerize_result = self.containerize_node(sum)
+        # print("Result: ", containerize_result)
 
         return sum
 
@@ -466,37 +519,6 @@ class GraphStore():
 
 
 
-
-
-    # count zero means dry run, just return the list of candidates
-    # if count is greater than zero, containerize and return list of
-    # processed nodes.
-    def housekeep_containerize(self, count = 0):
-        candidates = []
-
-        with self.graph.session() as s:
-            q = '''
-                MATCH (n:FileNode)-[:STORED_IN]->(c:Container) WHERE c.size > $container_size
-                RETURN DISTINCT n
-                '''
-                
-            result = s.run(q, container_size = container_size)
-            candidates = [r.get('n').get('sha256') for r in result]
-            s.close()
-
-        
-        # if we're in a dry run, we're done.
-        # Otherwise, (re-)containerize each node
-        if count > 0:
-            candidates = candidates[:count]
-        
-        if count > 0 or count == -1:
-            for c in candidates:
-                print("Containerizing {}".format(c))
-                self.containerize_node(c)
-
-
-        return candidates
 
 
     def housekeep_deltalize(self, count = 0):
@@ -712,6 +734,42 @@ class GraphStore():
 
 
         return None, buffer
+
+
+
+    # count zero means dry run, just return the list of candidates
+    # if count is greater than zero, containerize and return list of
+    # processed nodes.
+    def housekeep_containerize(self, batch_size=1000):
+        total_containerized = 0
+
+        last_batch_size = batch_size
+
+        if last_batch_size > 0:
+            with self.graph.session() as s:
+                q = f'''
+                    MATCH (fn:FileNode)-[:STORED_IN {{idx:0}}]->(c:Container) WHERE c.size > {container_size}
+                    RETURN DISTINCT fn.sha256 as fn LIMIT {batch_size}
+                    '''
+                    
+                print(q)
+                result = s.run(q)
+                print(result)
+                to_containerize_list = result.fetch(batch_size)
+                last_batch_size = len(to_containerize_list)
+
+                for r in to_containerize_list:
+                    fn = r.get("fn")
+                    print(f"Containerizing FileNode: {fn}")
+                    self.containerize_node(fn)
+
+                print(last_batch_size)
+                total_containerized += last_batch_size
+                s.close()
+
+        print("TOTAL CONTAINERIZE: ", total_containerized)
+
+        return None
 
 
 

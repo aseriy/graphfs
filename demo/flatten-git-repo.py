@@ -154,8 +154,9 @@ if __name__ == "__main__":
 
 
     commits_left = max_commits
-    for commit in all_commits:
+    for c in all_commits:
       if commits_left > 0:
+        commit = str(c)
         if not commit in commits_done:
           commit_path = checkout(repo, commit)
 
