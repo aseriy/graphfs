@@ -20,7 +20,7 @@ store_cache_dir = 'cache'
 # This is temporarily here, should be moved to a config file at some point
 # store container size set to 1k
 container_size = 1024
-container_chunking_batch_size = 100
+container_chunking_batch_size = 1024
 DEFAULT_BATCH_SIZE = 5000
 
 
@@ -167,10 +167,10 @@ class GraphStore():
                     if not os.path.isdir(perma_dir):
                         raise
 
-            with open(perma_path, "wb") as f:
-                print(perma_path)
-                f.write(buf)
-                f.close()
+            # with open(perma_path, "wb") as f:
+            #     print(perma_path)
+            #     f.write(buf)
+            #     f.close()
 
 
             container_list.append({
@@ -195,14 +195,31 @@ class GraphStore():
             sha256_list.pop()
             data_list.pop()
 
-        if len(sha256_list) > 0:
-            entities = [
-                sha256_list,
-                data_list
+
+        batch_list = []            
+        while len(sha256_list) > 0:
+            batch = [
+                sha256_list[:container_chunking_batch_size],
+                data_list[:container_chunking_batch_size]
             ]
-            # TODO: temporarily disabled
-            insert_result = self.vs.insert(entities)
+            batch_list.append(batch)
+            del sha256_list[:container_chunking_batch_size]
+            del data_list[:container_chunking_batch_size]
+
+        for batch in batch_list:
+            insert_result = self.vs.insert(batch)
             print("Vectors saved: ", insert_result)
+
+
+        # TODO: to be deleted
+        # if len(sha256_list) > 0:
+        #     entities = [
+        #         sha256_list,
+        #         data_list
+        #     ]
+        #     # TODO: temporarily disabled
+        #     insert_result = self.vs.insert(entities)
+        #     print("Vectors saved: ", insert_result)
 
 
         with self.graph.session() as s:
