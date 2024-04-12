@@ -19,7 +19,7 @@ h11==0.14.0
 heatshrink2==0.13.0
 httptools==0.6.0
 humanfriendly==10.0
-idna==3.6
+idna==3.7
 importlib-metadata==6.7.0
 lz4==4.3.3
 marshmallow==3.21.1
