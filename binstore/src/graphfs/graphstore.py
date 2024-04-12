@@ -136,6 +136,34 @@ class GraphStore():
 
 
 
+    def list_vectors(self):
+        container_list = {}
+
+        with self.graph.session() as s:
+            q = f'''
+                MATCH (c:Container) WHERE c.size={container_size}
+                RETURN c ORDER BY c.sha256
+                '''
+                
+            result = s.run(q)
+
+            for r in result:
+                container = r.get("c")
+                container_list[container.get('sha256')] = {
+                    "size":     container.get('size'),
+                    "graph": True
+                }
+
+            s.close()
+
+
+        vectors = self.vs.list()
+        for v in vectors:
+            container_list[v]["vector"] = True
+
+        return container_list
+
+
 
 
 
@@ -166,11 +194,16 @@ class GraphStore():
                 except OSError:
                     if not os.path.isdir(perma_dir):
                         raise
-
-            # with open(perma_path, "wb") as f:
-            #     print(perma_path)
-            #     f.write(buf)
-            #     f.close()
+            
+            # TODO: instead of saving each Chunk/Container to a file,
+            #       save just the last one if it's less than a Chunk size.
+            #       The rest will reside in the vector DB.
+            #       In the future, we need to shift from file store to MinIO;
+            #       this way all data is shared as we scale up.
+            with open(perma_path, "wb") as f:
+                print(perma_path)
+                f.write(buf)
+                f.close()
 
 
             container_list.append({

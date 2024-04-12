@@ -42,8 +42,28 @@ class VectorStore():
     self.collection.create_index("data", index)
 
 
+  def list(self):
+    vector_list = []
+
+    # Create a query iterator
+    iterator = self.collection.query_iterator(
+        batch_size=1,
+        # limit=5,
+        expr="",
+        output_fields=["sha256"]
+    )
+    print(iterator)
+    result = iterator.next()
+    while result:
+      for r in result:
+        vector_list.append(r["sha256"])
+      result = iterator.next()
+
+    return vector_list
+
+
   def insert(self, entities):
-    result = self.collection.insert(entities)
+    result = self.collection.upsert(entities)
     self.collection.flush()
     return result
 
