@@ -4,9 +4,13 @@ import json
 from pymilvus import (
     connections,
     utility,
-    FieldSchema, CollectionSchema, DataType,
+    FieldSchema,
+    CollectionSchema,
+    DataType,
     Collection,
+    utility
 )
+from pymilvus.client.types import ExceptionsMessage, LoadState
 
 from util.neo4j_helpers import get_credentials
 import os
@@ -32,14 +36,72 @@ class VectorStore():
     print(fmt.format(f"Create collection {collection}"))
     self.collection = Collection(collection, schema, consistency_level="Strong")
 
-    print(fmt.format("Start Creating index BIN_IVF_FLAT"))
-    index = {
-        "index_type": "BIN_IVF_FLAT",
-        "metric_type": "HAMMING",
-        "params": {"nlist": 128}
+    if not self.collection.has_index(index_name="graphfs"):
+      print(fmt.format("Start Creating index BIN_IVF_FLAT"))
+      index = {
+          "index_type": "BIN_IVF_FLAT",
+          "metric_type": "HAMMING",
+          "params": {"nlist": 2896}
+      }
+      self.collection.create_index("data", index, index_name="graphfs")
+
+    if utility.load_state(collection) == LoadState.NotLoad:
+      print(f"Loading collection {collection}...")
+      self.collection.load()
+      utility.wait_for_loading_complete(collection)
+
+    # Compact small segments
+    print(fmt.format(f"Compacting collection {collection}"))
+    # self.collection.compact()
+    # self.collection.wait_for_compaction_completed()
+
+    # Display collection stats
+    print(json.dumps(self.stats(), indent=2))
+  
+    if self.is_index_in_progress():
+      utility.wait_for_index_building_complete(collection)
+  
+    # print(utility.index_building_progress(collection))
+    # print(json.dumps(self.stats(), indent=2))
+
+
+
+  def is_index_in_progress(self):
+    indexing_in_progress = False
+
+    entities = self.collection.num_entities
+    print("Entities: ", entities)
+
+    segments = utility.get_query_segment_info(collection)
+    print("Number of Segments: ", len(segments))
+
+    status = utility.index_building_progress(collection)
+    print("Indexing Status: ", json.dumps(status, indent=2))
+    # pending = status['pending_index_rows']
+    # if pending > 0:
+    #   indexing_in_progress = True
+
+    return indexing_in_progress
+
+
+
+  def stats(self):
+    stats = {
+      "description": self.collection.describe(),
+      "entities": self.collection.num_entities,
+      "indexing": utility.index_building_progress(collection)
     }
 
-    self.collection.create_index("data", index)
+    # indexes = self.collection.indexes
+    # for idx in indexes:
+    #   print(idx)
+
+    # partitions = self.collection.partitions
+    # for p in partitions:
+    #   print(p)
+
+    return stats
+
 
 
   def list(self):
@@ -47,7 +109,7 @@ class VectorStore():
 
     # Create a query iterator
     iterator = self.collection.query_iterator(
-        batch_size=1,
+        batch_size=1000,
         # limit=5,
         expr="",
         output_fields=["sha256"]
@@ -62,10 +124,29 @@ class VectorStore():
     return vector_list
 
 
-  def insert(self, entities):
+  def add(self, entities):
     result = self.collection.upsert(entities)
-    self.collection.flush()
+
+    if self.is_index_in_progress():
+      self.collection.flush()
+      print("Waiting for indexing to complete...")
+      utility.wait_for_index_building_complete(collection)
+
     return result
+
+
+
+  def flush(self):
+    self.collection.flush()
+    # self.collection.compact()
+
+
+
+  def delete(self, entities):
+    expr = f"sha256 in {json.dumps(entities)}"
+    result = self.collection.delete(expr)
+    return result
+
 
 
   def find_similar(self, sha256):

@@ -41,11 +41,24 @@ if __name__ == "__main__":
     containers = bs.list_vectors()
     print(json.dumps(containers, indent=2))
 
-    container_nodes = [sha256 for sha256 in containers.keys() if containers[sha256]['graph']]
+    container_nodes = [sha256 for sha256 in containers.keys() if 'graph' in containers[sha256]]
     print("GRAPH:  ", len(container_nodes))    
-    vector_keys = [sha256 for sha256 in containers.keys() if containers[sha256]['vector']]
-    print("VECTOR: ", len(vector_keys))    
+    vector_keys = [sha256 for sha256 in containers.keys() if 'vector' in containers[sha256]]
+    print("VECTOR: ", len(vector_keys))
 
+    graph_only = [sha256 for sha256 in containers.keys() \
+                    if 'graph' in containers[sha256] and \
+                        not 'vector' in containers[sha256] \
+                ]
+    vector_only = [sha256 for sha256 in containers.keys() \
+                    if not 'graph' in containers[sha256] and \
+                        'vector' in containers[sha256] \
+                ]
+    print("GRAPH ONLY:   ", json.dumps(graph_only, indent=2)) 
+    print("VECTOR ONLY:  ", json.dumps(vector_only, indent=2))    
+
+    if len(vector_only):
+        bs.delete_vectors(vector_only)
 
     exit(0)
 

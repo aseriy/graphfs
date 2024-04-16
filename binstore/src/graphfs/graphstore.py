@@ -159,11 +159,17 @@ class GraphStore():
 
         vectors = self.vs.list()
         for v in vectors:
+            if not v in container_list:
+                container_list[v] = {}
+            
             container_list[v]["vector"] = True
 
         return container_list
 
 
+    def delete_vectors(self, vector_list):
+        self.vs.delete(vector_list)
+        return None
 
 
 
@@ -201,7 +207,7 @@ class GraphStore():
             #       In the future, we need to shift from file store to MinIO;
             #       this way all data is shared as we scale up.
             with open(perma_path, "wb") as f:
-                print(perma_path)
+                # print(perma_path)
                 f.write(buf)
                 f.close()
 
@@ -240,7 +246,7 @@ class GraphStore():
             del data_list[:container_chunking_batch_size]
 
         for batch in batch_list:
-            insert_result = self.vs.insert(batch)
+            insert_result = self.vs.add(batch)
             print("Vectors saved: ", insert_result)
 
 
@@ -816,6 +822,9 @@ class GraphStore():
                 print(last_batch_size)
                 total_containerized += last_batch_size
                 s.close()
+
+
+        self.vs.flush()
 
         print("TOTAL CONTAINERIZE: ", total_containerized)
 
