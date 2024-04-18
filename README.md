@@ -60,3 +60,68 @@ server.memory.heap.initial_size=3g
 server.memory.heap.max_size=3g
 server.memory.pagecache.size=1g
 ```
+
+
+## Demo Data
+
+```
+pip3 install yt-dlp
+```
+
+Check the downloadable file formats:
+
+``` 
+yt-dlp -F https://youtu.be/iM3kjbbKHQU?si=eyd-etzPFMe2uCkA
+```
+
+Download
+
+```
+yt-dlp -f 399  https://youtu.be/iM3kjbbKHQU?si=eyd-etzPFMe2uCkA
+```
+
+Split the downloaded MP4 into frames (images). See https://youtu.be/GrLQQVL4aKE?si=aPa3b8H4S2NrAsTV
+
+```
+ffmpeg -i Modern\ Graphical\ User\ Interfaces\ in\ Python\ \[iM3kjbbKHQU\].mp4 -filter:v fps=1 frames/%06d.png
+```
+
+The  `-filter:v fps=1` defines how many frames per second to capture.
+
+
+
+## Replace archive files with their extracted content
+
+```
+for f in *.gz; do (mkdir tmp && cd tmp && tar xvfz ../$f && cd .. && rm $f &&mv tmp $f); done
+```
+
+```
+for f in *.zip; do (mkdir tmp && cd tmp && unzip ../$f && cd .. && rm $f &&mv tmp $f); done
+```
+
+```
+find . -maxdepth 2 -type f -name "accumulo-*.tar.gz" | xargs dirname | sort -u
+```
+
+
+## Hydrate with commits from a Git repo
+
+```
+nohup python3 -u flatten-git-repo.py -d ../demo-data -r https://github.com/hub4j/github-api -m 1000 > /mnt/volumes/graphfs/log/flatten-git-repo.log 2>&1 &
+```
+
+from `~/git/graphfs/demo` directory.
+
+
+Containerize:
+
+```
+nohup python3 -u binstore/src/graphfs/containerizer.py > /mnt/volumes/graphfs/containerizer.log 2>&1
+```
+
+Scrub:
+
+```
+
+```
