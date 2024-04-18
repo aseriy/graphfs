@@ -11,9 +11,6 @@ def find_similar(limit = None):
     done = False
 
     while done is False:
-      # print("WHILE: ", done)
-      # print("LIMIT: ", limit)
-
       candidate = bs.next_deltalize_candidate()
       print("Deltalize candidate: ", candidate)
 
@@ -25,7 +22,14 @@ def find_similar(limit = None):
               done = True
 
       if done is False:
+
+        # TODO: finding multiple pairs of similar containers can be done 
+        #       in parallel.
+        #       A list of unique pairs can be accumulated first.
+        #       The list then is checked for recipricals.
+        #       Finally, it's likely that deltalization can be done multi-threaded as well.
         similar = bs.find_similar_container(candidate)
+
         print("SIMILAR: ", json.dumps(similar, indent=2))
         similarity_found = False
         if similar is not None:
