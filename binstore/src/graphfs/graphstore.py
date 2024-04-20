@@ -261,74 +261,40 @@ class GraphStore():
         #     print("Vectors saved: ", insert_result)
 
 
+        batch_list = []            
+        while len(container_list) > 0:
+            batch = container_list[:container_chunking_batch_size]
+            batch_list.append(batch)
+            del container_list[:container_chunking_batch_size]
+
+        q = f'''
+            MATCH (fn:FileNode {{sha256: "{node_sum}"}})-[r:STORED_IN {{idx: 0}}]->(c:Container)
+            DELETE r
+            RETURN fn, c
+            '''
+        print(q)
+
         with self.graph.session() as s:
-            # q = f'''
-            #     MATCH (n:FileNode {{sha256: "{node_sum}"}})-[r:STORED_IN]->(c:Container)
-            #     DELETE r
-            #     WITH n, $container_list AS container_list
-            #     UNWIND container_list AS cl
-            #     MERGE (c:Container {{sha256: cl.sha256}})
-            #     SET c.ctime = datetime(), c.size = cl.size
-            #     MERGE (n)-[:STORED_IN {{idx: cl.idx}}]->(c)
-            #     RETURN n
-            #     '''
+            result = s.run(q)
+            s.close()
 
-
+        print("batch_list: ", len(batch_list))
+        idx = 0
+        for batch in batch_list:
             q = f'''
-                MATCH (fn:FileNode {{sha256: "{node_sum}"}})-[r:STORED_IN {{idx: 0}}]->(c:Container)
-                DELETE r
-                RETURN fn, c
+                MATCH (n:FileNode {{sha256: "{node_sum}"}})
+                WITH n, $container_list AS container_list
+                UNWIND container_list AS cl
+                MERGE (c:Container {{sha256: cl.sha256}})
+                ON CREATE SET c.ctime = datetime(), c.size = cl.size
+                MERGE (n)-[:STORED_IN {{idx: cl.idx}}]->(c)
+                RETURN n
                 '''
             print(q)
-            result = s.run(q)
-
-            batch_list = []            
-            while len(container_list) > 0:
-                batch = container_list[:container_chunking_batch_size]
-                batch_list.append(batch)
-                del container_list[:container_chunking_batch_size]
-
-            print("batch_list: ", len(batch_list))
-            idx = 0
-            for batch in batch_list:
-                q = f'''
-                    MATCH (n:FileNode {{sha256: "{node_sum}"}})
-                    WITH n, $container_list AS container_list
-                    UNWIND container_list AS cl
-                    MERGE (c:Container {{sha256: cl.sha256}})
-                    ON CREATE SET c.ctime = datetime(), c.size = cl.size
-                    MERGE (n)-[:STORED_IN {{idx: cl.idx}}]->(c)
-                    RETURN n
-                    '''
-                print(q)
+            with self.graph.session() as s:
                 result = s.run(q, container_list = batch)
                 print(result)
-            
-
-            # q = f'''
-            #     MATCH (f:Regular)-[r:REFERENCES]->(fn:FileNode {{sha256: "{node_sum}"}})
-            #     MATCH (tmp:__FileNode) WHERE fn.sha256=tmp.sha256
-            #     WITH f, fn, tmp, COLLECT(r) as refs
-            #     UNWIND refs as ref
-            #     MERGE (f)-[r:REFERENCES]->(tmp)
-            #     SET r +=properties(ref)
-            #     DELETE ref
-            #     WITH f,fn,tmp
-            #     DETACH DELETE fn
-            #     SET tmp:FileNode
-            #     REMOVE tmp:__FileNode
-            #     RETURN f,tmp
-            #     '''
-            # print(q)
-            # result = s.run(q)
-            # print(result)
-
-
-
-            # result = s.run(q, container_list = container_list)
-            # print (result.peek())
-            # ret_node = result.single().get('n')
-            # s.close()
+                s.close()            
 
 
         return ret_node
