@@ -40,12 +40,19 @@ class GraphStore():
         self.bin_store_perma_dir = os.path.join(bin_store_dir, store_perma_dir)
         self.bin_store_cache_dir = os.path.join(bin_store_dir, store_cache_dir)
         self.graph = \
-            GraphDatabase.driver("bolt://" + creds['neo4j_url'] + ":7687",
-                                    auth=(creds['neo4j_username'],
-                                    creds['neo4j_password']))
+            GraphDatabase.driver(
+                "bolt://" + creds['neo4j_url'] + ":7687",
+                auth=(creds['neo4j_username'], creds['neo4j_password']),
+                liveness_check_timeout = 60.0
+            )
+        print("DRIVER: ", self.graph._pool.pool_config)
         
         self.vs = VectorStore(creds)
 
+
+
+    def __del__(self):
+        self.graph.close()
 
 
 
