@@ -43,7 +43,9 @@ class GraphStore():
             GraphDatabase.driver(
                 "bolt://" + creds['neo4j_url'] + ":7687",
                 auth=(creds['neo4j_username'], creds['neo4j_password']),
-                liveness_check_timeout = 60.0
+                max_connection_lifetime = 60 * 20,
+                liveness_check_timeout = 60.0,
+                max_connection_pool_size = 60
             )
         print("DRIVER: ", self.graph._pool.pool_config)
         
