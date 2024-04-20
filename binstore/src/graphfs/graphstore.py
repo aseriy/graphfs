@@ -799,9 +799,9 @@ class GraphStore():
 
         self.vs.flush()
 
-        print("TOTAL CONTAINERIZE: ", total_containerized)
+        print("TOTAL CONTAINERIZED: ", total_containerized)
 
-        return None
+        return total_containerized
 
 
 

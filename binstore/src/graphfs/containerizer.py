@@ -30,24 +30,35 @@ if __name__ == "__main__":
             description = "Containerize FileNodes"
         )
 
-    # parser.add_argument("-b", "--batch_size", type=int, required=False, default=10,
-    #                     help=""
-    #                 )
-    # parser.add_argument("-s", "--source", type=bool, required=false,
-    #                     help="Source path. If Source is a directory, all files under it will be copied."
-    #                 )
+    parser.add_argument("-b", "--batch_size", type=int, required=False, default=1000,
+                        help="Number of nodes to containerize in one batch. Default: 1000"
+                    )
+    parser.add_argument("-n", "--batch_num", type=int, required=False, default=0,
+                        help="Number of batches to run. Default: 0 - containerize all nodes."
+                    )
 
     args, unknown = parser.parse_known_args()
 
-    # dest_dir = args.dir
-    # src_path = args.source
-    # print(dest_dir)
-    # print(src_path)
+    batch_size = args.batch_size
+    batch_num = args.batch_num
+    until_done = False if (batch_num > 0) else True
+    print("Batch size: ", batch_size)
+    print("Number of batches: ", batch_num)
+    print("Until done: ", until_done)
 
     creds = get_credentials(os.path.join(os.path.dirname(__file__), '../../../etc'), 'config.yml')
     bs = GraphStore(creds)
 
-    bs.housekeep_containerize()
+    nodes_done = batch_size
+    
+    if until_done:
+        while nodes_done > 0:
+            nodes_done = bs.housekeep_containerize(batch_size)
+
+    else:
+        while nodes_done > 0 and batch_num > 0:
+            nodes_done = bs.housekeep_containerize(batch_size)
+            batch_num -= 1
 
     exit(0)
 
