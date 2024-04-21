@@ -24,15 +24,6 @@ container_chunking_batch_size = 1024
 DEFAULT_BATCH_SIZE = 5000
 
 
-#
-# CREATE INDEX IF NOT EXISTS FOR (n:FileNode) ON (n.sha256)
-# CREATE INDEX ON:Container(sha256)
-# CREATE INDEX ON:Container(sha256)
-# CREATE INDEX ON:MUTATED(patch_to_ratio)
-# CREATE INDEX ON:MUTATED(diff_extra_ratio)
-# CREATE INDEX ON:MUTATED(size_data_ratio)
-#
-
 class GraphStore():
     def __init__(self, creds):
         self.validator = re.compile('[0-9a-f]+')
@@ -43,7 +34,7 @@ class GraphStore():
             GraphDatabase.driver(
                 "bolt://" + creds['neo4j_url'] + ":7687",
                 auth=(creds['neo4j_username'], creds['neo4j_password']),
-                max_connection_lifetime = 60 * 20,
+                max_connection_lifetime = 60 * 5,
                 liveness_check_timeout = 60.0,
                 max_connection_pool_size = 60
             )
@@ -851,3 +842,28 @@ class GraphStore():
 
         return None
     
+
+
+    def stats_basic(self):
+        stats_json = None
+
+        with self.graph.session() as s:
+            q = '''
+                MATCH (d:Directory) WITH COUNT(d) AS Directories
+                MATCH (f:Regular) WITH Directories, COUNT(f) AS Files
+                MATCH (fn:FileNode)
+                RETURN Directories, Files, COUNT(fn) AS FileNodes, SUM(fn.size) AS Size
+                '''
+            result = s.run(q)
+            stats = result.peek()
+            s.close()
+
+            stats_json = {
+                "directories": stats.get('Directories'),
+                "files": stats.get('Files'),
+                "filenodes": stats.get('FileNodes'),
+                "size": stats.get('Size')
+            }
+
+        return stats_json
+
