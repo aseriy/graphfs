@@ -207,7 +207,7 @@ class GraphStore():
                 #       In the future, we need to shift from file store to MinIO;
                 #       this way all data is shared as we scale up.
                 with open(perma_path, "wb") as f:
-                    # print(perma_path)
+                    print(perma_path)
                     f.write(buf)
                     f.close()
 
