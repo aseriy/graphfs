@@ -201,15 +201,15 @@ class GraphStore():
                     if not os.path.isdir(perma_dir):
                         raise
             
-            # TODO: instead of saving each Chunk/Container to a file,
-            #       save just the last one if it's less than a Chunk size.
-            #       The rest will reside in the vector DB.
-            #       In the future, we need to shift from file store to MinIO;
-            #       this way all data is shared as we scale up.
-            with open(perma_path, "wb") as f:
-                # print(perma_path)
-                f.write(buf)
-                f.close()
+                # TODO: instead of saving each Chunk/Container to a file,
+                #       save just the last one if it's less than a Chunk size.
+                #       The rest will reside in the vector DB.
+                #       In the future, we need to shift from file store to MinIO;
+                #       this way all data is shared as we scale up.
+                with open(perma_path, "wb") as f:
+                    # print(perma_path)
+                    f.write(buf)
+                    f.close()
 
 
             container_list.append({
