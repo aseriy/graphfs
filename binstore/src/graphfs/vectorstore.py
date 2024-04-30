@@ -171,11 +171,11 @@ class VectorStore():
         },
         limit=1000
       )
-      # print("SIMILARITY SEARCH: ", s_results)
+      print("SIMILARITY SEARCH: ", s_results)
 
       if len(s_results) > 0:
-        print(s_results[0].ids)
-        print(s_results[0].distances)
+        # print(s_results[0].ids)
+        # print(s_results[0].distances)
         if len(s_results[0].ids) > 1:
           similar_vector = []
           # Skip the first element as it is the one we're processing here
