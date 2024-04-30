@@ -10,7 +10,7 @@ Imagine you drop all your files into a single "bucket," and this file store unde
 And much, much more. GraphFS leverages the power of graph and vector databases to accomplish just that.
 
 
-```
+```bash
 brew install libmagic
 uvicorn main:app --host 0.0.0.0 --port 8080 --reload
 ```
@@ -19,7 +19,11 @@ uvicorn main:app --host 0.0.0.0 --port 8080 --reload
 Neo4j Indexes
 
 ```
+CREATE INDEX FOR (fn:FileNode) ON fn.sha256
+CREATE INDEX FOR (fn:FileNode) ON fn.size
+CREATE INDEX FOR (fn:FileNode) ON fn.mime
 CREATE INDEX FOR (c:Container) ON c.sha256
+CREATE INDEX FOR (c:Container) ON c.size
 CREATE INDEX FOR (f:Regular) ON f.name
 CREATE INDEX FOR (d:Directory) ON d.name
 ```
@@ -47,6 +51,30 @@ Find all SIMILAR_TO chains
 MATCH (c1:Container)-[:SIMILAR_TO *]->(c2:Container) RETURN c1,c2
 ```
 
+List file with the specified MIME type
+
+```sql
+MATCH (f:Regular)-[:REFERENCES]-(fn:FileNode {mime:"text/x-Algol68"}) WITH f MATCH p=shortestPath((r:Root)-[:HARD_LINK*]-(f:Regular)) RETURN [n in nodes(p) | n.name] AS path ORDER BY path
+```
+
+List the number of file of each MIME type:
+
+```
+MATCH (fn:FileNode) WITH DISTINCT fn.mime AS mime
+UNWIND mime AS m
+MATCH (fn:FileNode {mime: m})
+RETURN m AS mime, COUNT(fn) AS count ORDER BY count DESC
+```
+
+Similarity Progress Stats
+
+```sql
+MATCH (c:Container) WITH COUNT(c) AS Total
+MATCH (c:Container) WHERE c.simsearch IS NOT NULL OR (c)-[:SIMILAR_TO]->(:Container) WITH Total, COUNT(c) AS SimSearched
+MATCH (c:Container)-[:SIMILAR_TO]-(:Container) WITH Total, SimSearched, COUNT(DISTINCT c) AS Similar
+RETURN Total, SimSearched, round(100.0*SimSearched/Total,2) AS Progress, Similar, round(100.0*Similar/Total,2) AS Similarity
+```
+
 
 
 Recommended Neo4j memory config:
@@ -70,37 +98,48 @@ pip3 install yt-dlp
 
 Check the downloadable file formats:
 
-``` 
+```bash
 yt-dlp -F https://youtu.be/iM3kjbbKHQU?si=eyd-etzPFMe2uCkA
 ```
 
 Download
 
-```
+```bash
 yt-dlp -f 399  https://youtu.be/iM3kjbbKHQU?si=eyd-etzPFMe2uCkA
 ```
 
 Split the downloaded MP4 into frames (images). See https://youtu.be/GrLQQVL4aKE?si=aPa3b8H4S2NrAsTV
 
-```
+```bash
 ffmpeg -i Modern\ Graphical\ User\ Interfaces\ in\ Python\ \[iM3kjbbKHQU\].mp4 -filter:v fps=1 frames/%06d.png
 ```
 
 The  `-filter:v fps=1` defines how many frames per second to capture.
 
 
+Convert PNG's to BMP's:
+
+```python
+from PIL import Image
+import os
+for png in os.listdir('.'):
+  bmp = f"{png.split('.')[0]}.bmp"
+  Image.open(png).save(bmp)
+```
+
+
 
 ## Replace archive files with their extracted content
 
-```
+```bash
 for f in *.gz; do (mkdir tmp && cd tmp && tar xvfz ../$f && cd .. && rm $f &&mv tmp $f); done
 ```
 
-```
+```bash
 for f in *.zip; do (mkdir tmp && cd tmp && unzip ../$f && cd .. && rm $f &&mv tmp $f); done
 ```
 
-```
+```bash
 find . -maxdepth 2 -type f -name "accumulo-*.tar.gz" | xargs dirname | sort -u
 ```
 
