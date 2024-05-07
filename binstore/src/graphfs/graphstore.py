@@ -843,8 +843,7 @@ class GraphStore():
         return None
     
 
-
-    def stats_basic(self):
+    def stats_file_system(self):
         stats_json = None
 
         with self.graph.session() as s:
@@ -865,5 +864,39 @@ class GraphStore():
                 "size": stats.get('Size')
             }
 
+            stats_json['redundancy'] = round(1.0 * stats_json['files'] / stats_json['filenodes'], 2)
+
         return stats_json
+
+
+    def stats_data_store(self):
+        stats_json = {}
+
+        queries = [
+            {
+                "stats": "containers",
+                "cypher": "MATCH (c:Container) RETURN COUNT(c) AS containers"
+            },
+            {
+                "stats": "simsearched",
+                "cypher": "MATCH (c:Container) WHERE c.simsearch IS NOT NULL OR (c)-[:SIMILAR_TO]->(:Container) RETURN COUNT(c) AS simsearched"
+            },
+            {
+                "stats": "similar",
+                "cypher": "MATCH (c:Container)-[:SIMILAR_TO]-(:Container) RETURN COUNT(DISTINCT c) AS similar"
+            }
+        ]
+
+        for q in queries:
+            with self.graph.session() as s:
+                result = s.run(q['cypher'])
+                data = result.peek()
+                stats_json[q['stats']] = data.get(q['stats'])
+                s.close()
+
+        stats_json['simsearch_progress'] = round(100.0 * stats_json['simsearched'] / stats_json['containers'], 2)
+        stats_json['similarity'] = round(100.0 * stats_json['similar'] / stats_json['containers'], 2)
+
+        return stats_json
+
 

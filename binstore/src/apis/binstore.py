@@ -12,11 +12,14 @@ from graphfs.graphstore import GraphStore
 from src.models.binstore import (
     FileNode
 )
+from src.apis.resources import (
+    graphStore as bs
+)
 
 router = APIRouter()
 
-creds = get_credentials('../etc', 'config.yml')
-bs = GraphStore(creds)
+# creds = get_credentials('../etc', 'config.yml')
+# bs = GraphStore(creds)
 
 
 @router.get("/binstore/files", tags=["binstore"], status_code=200)

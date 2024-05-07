@@ -1,6 +1,8 @@
 from neo4j import GraphDatabase
 from pathlib import PurePath
 import datetime
+import json
+import os
 
 
 class FileStore():
@@ -63,8 +65,9 @@ class FileStore():
 
 
 
-  def create_file(self, sha256: str, path: PurePath):
+  def create_file(self, sha256: str, path: PurePath) -> str:
     file_node = None
+
     q, r = self.query_create_file(sha256, path)
     print("\n".join([q,r]))
     with self.graph.session() as s:
@@ -75,8 +78,17 @@ class FileStore():
     return file_node
 
 
+
+    def delete_file(self, path: PurePath) -> None:
+      
+
+      return None
+
+
+
   def query_list_file(self, node_id: str):
     q = f"MATCH (f:Regular)-[r:REFERENCES]->(fn:FileNode) WHERE elementId(f)='{node_id}' RETURN f,r,fn"
+    print("Cypher: ", q)
 
     listing = None
     f, r, fn = None, None, None
@@ -89,8 +101,10 @@ class FileStore():
       fn = f_r_fn.get('fn')
 
     listing = {
+      'path': None,
+      'directory': None,
       'type': 'File',
-      'name': f.get('name'),
+      'basename': f.get('name'),
       'size': fn.get('size'),
       'time': str(fn.get('ctime')),
       'mime': fn.get('mime'),
@@ -101,13 +115,43 @@ class FileStore():
 
 
 
+  def list_identical_files(self, path: str):
+    identical_files = []
+
+    file_path = self.find_path(path)
+    print(json.dumps(file_path, indent=2))
+    file_id = file_path['path'][-1]
+
+    q = f"""MATCH (f:Regular)-[:REFERENCES]->(fn:FileNode)<-[:REFERENCES]-(t:Regular)
+            WHERE elementId(f)="{file_id}" AND f<>t
+            WITH COLLECT(t) AS twins UNWIND twins as t
+            MATCH p=shortestPath((r:Root)-[:HARD_LINK*]-(t))
+            RETURN [n in nodes(p) | n.name] AS path ORDER BY path"""
+
+    print("Cypher: ", q)
+
+    with self.graph.session() as s:
+      result = s.run(q)
+      for r in result:
+        p = r.get('path')
+        p.pop(0)
+        identical_files.append(str(PurePath('/').joinpath(*p)))
+
+      s.close()
+
+      print(json.dumps(identical_files, indent=2))
+
+    return identical_files
+
+
+
   def query_list_directory(self, node_id: str):
     q = f"""MATCH (d) WHERE elementId(d)='{node_id}'
             OPTIONAL MATCH (d)<-[:HARD_LINK]-(f:FileSystem)
             OPTIONAL MATCH (p:FileSystem)<-[:HARD_LINK]-(d)
             RETURN p, d, collect(f) as children"""
     
-    print("Query: ", q)
+    print("Cypher: ", q)
 
     listing = None
     parent, directory, children = None, None, None
@@ -118,34 +162,83 @@ class FileStore():
       parent = p_d_ch.get('p')
       directory = p_d_ch.get('d')
       children = p_d_ch.get('children')
-
-    listing = {}
-
-    print("Parent: ", parent)           
-    if parent is not None:
-      listing['parent'] = parent.get('name')
-    else:
-      listing['parent'] = '/'
+      s.close()
 
 
-    listing['name'] = directory.get('name')
-    listing['size'] = 2
+    listing = {
+      "path": None,
+      "directory": None,
+      "type": "Directory",
+      "basename": directory.get('name'),
+      "size": 0
+    }
 
 
     if len(children):
       listing['children'] = []
       for child in children:
         if 'Directory' in child.labels:
-          listing['children'].append(self.query_list_directory(child.element_id))
+          listing['children'].append({
+              "type": "Directory",
+              "basename": child.get('name')
+            }
+          )
+          # listing['children'].append(self.query_list_directory(child.element_id))
 
         else:
           listing['children'].append(self.query_list_file(child.element_id))
 
-      listing['size'] += len(children)
+      # Sort children by name
+      listing['children'] = sorted(listing['children'], key=lambda c: c['basename'])
+
+      listing['size'] = len(children)
 
 
     return listing
 
+
+  def find_path(self, path: PurePath):
+    print("find_path: ", path)
+    found_path = {
+      "isDir": False
+    }
+
+    path_nodes = []
+    path_match= [
+      '(:Root)'
+    ]
+    path_return = []
+
+
+    for i, p in enumerate(path.parts, start=1):
+      node = None
+      if len(path.parts) == i:
+        node = 'f'
+      else:
+        node = f"d{i}"
+
+      path_nodes.append(node)
+      path_match.append(f"({node}:FileSystem {{name: \"{p}\"}})")
+      path_return.append(f"elementId({node}) AS {node}")
+    
+    q = f"""MATCH {'<-[:HARD_LINK]-'.join(path_match)}
+            RETURN {', '.join(path_return)},
+            labels({path_nodes[-1]}) AS labels"""
+    print("Cypher: ", q)
+  
+    with self.graph.session() as s:
+      result = s.run(q)
+      single = result.single()
+      if 'Directory' in single.get('labels'):
+        found_path['isDir'] = True
+
+      found_path['path'] = []
+      for p in path_nodes:
+        found_path['path'].append(single.get(p))
+
+      s.close()
+
+    return found_path
 
 
   def query_list(self, path: PurePath = None):
@@ -162,7 +255,7 @@ class FileStore():
         path_list.append(f"({leaf}:FileSystem {{name: \"{p}\"}})")
       
       q = f"MATCH {'<-[:HARD_LINK]-'.join(path_list)} RETURN elementId(f) as id, labels(f) AS labels"
-      print("Query: ", q)
+      print("Cypher: ", q)
     
       with self.graph.session() as s:
         result = s.run(q)
@@ -173,7 +266,7 @@ class FileStore():
         
     else:     # Root
       q = "MATCH (r:Root) RETURN elementId(r) as id"
-      print("Query: ", q)
+      print("Cypher: ", q)
 
       with self.graph.session() as s:
         result = s.run(q)
@@ -193,6 +286,12 @@ class FileStore():
     else:
       listing = self.query_list_file(path_id)
 
+    if path is None:
+      listing['path'] = '/'
+      listing['directory'] = None
+    else:
+      listing['path'] = PurePath('/', path)
+      listing['directory'] = listing['path'].parent
     
     return listing
 
@@ -201,3 +300,5 @@ class FileStore():
   def list(self, path: PurePath = None):
     listing = self.query_list(path)
     return listing
+
+

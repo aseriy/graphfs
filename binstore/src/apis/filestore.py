@@ -14,33 +14,54 @@ from graphfs.graphstore import GraphStore
 from src.models.binstore import (
     FileNode
 )
+from src.apis.resources import (
+    graphStore as bs,
+    fileStore as fs
+)
+
 
 router = APIRouter()
 
-creds = get_credentials('../etc', 'config.yml')
-bs = GraphStore(creds)
-fs = FileStore(creds)
+# creds = get_credentials('../etc', 'config.yml')
+# bs = GraphStore(creds)
+# fs = FileStore(creds)
+
+
+
+# @router.get("/filestore", tags=["filestore"], status_code=200)
+# def file_list():
+#     ls_data = fs.list()
+#     return ls_data
 
 
 @router.get("/filestore", tags=["filestore"], status_code=200)
-def file_list():
-    ls_data = fs.list()
-    return ls_data
-
-
-
 @router.get("/filestore/{path:path}", tags=["filestore"], status_code=200)
-def file_list(path: str):
+async def file_meta(path: str = None):
     print(f"path: {path}")
 
-    ls_data = fs.list(PurePath(path))
+    ls_data = None
+
+    if path is None:
+        ls_data = fs.list()
+    else:
+        ls_data = fs.list(PurePath(path))
     
     return ls_data
 
 
 
+@router.get("/identical/{path:path}", tags=["filestore"], status_code=200)
+async def file_identical(path: str):
+    print(f"path: {path}")
+
+    identical = fs.list_identical_files(PurePath(path))
+
+    return identical
+
+
+
 @router.post("/filestore/{path:path}", tags=["filestore"], status_code=200)
-def file_upload(path: str, file: UploadFile = File(None)):
+async def file_upload(path: str, file: UploadFile = File(None)):
     print(f"path: {path}")
     print("file: ", file)
     signature = None
@@ -84,16 +105,15 @@ def file_upload(file: UploadFile = File(None)):
 
     fn = fs.create_file(signature, PurePath(file.filename))
 
-    # TODO: This shouldn't really belong here but in the FileNode creation code
-    bs.containerize_node(fn)
-    
     return None
 
 
 @router.delete("/filestore/{path:path}", tags=["filestore"], status_code=200)
 def file_delete(path: str):
     print(f"path: {path}")
+    print(f"PurePath: {PurePath(path)}")
 
+    # fs.delete_file(PurePath(path))
 
     return None
 
