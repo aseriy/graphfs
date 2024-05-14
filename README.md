@@ -9,11 +9,82 @@ Imagine you drop all your files into a single "bucket," and this file store unde
 
 And much, much more. GraphFS leverages the power of graph and vector databases to accomplish just that.
 
+## Running in Docker Container
+
+Install Docker on your platform.
+
+Create the data directory:
+
+```bash
+mkdir ./volumes/graphfs
+```
+
+This is where `graphfs` stores data internally, so make sure it has some space.
+
+Create the config file by cloning `etc/config.yml.sample` and then customize based on your situation:
+
+```yaml
+environments:
+  DEV:
+    BINSTORE:
+      path: /mnt/data
+    NEO4J:
+      password: binstore
+      username: neo4j
+local_url: <ip_addr>
+milvus_url: <ip_addr>
+graphfs_host: localhost
+graphfs_port: 9000
+
+```
+
+Build the GraphFS image from the `Dockerfile`:
+
+```bash
+docker build -t graphfs .
+```
+
+
+Run the GraphFS server in a container. The server runs on port `9000`:
+
+```bash
+docker run -it --rm --name graphfssrv -p 127.0.0.1:9000:9000 -v ./volumes/graphfs:/mnt/data graphfs
+```
+
+## Dev Environment Setup
+
+Python 3.12.3
+
+On Windows, Python executable is not `python.exe` but `py.exe`
+
+pip 24.0
+
+On Windows, see https://www.geeksforgeeks.org/how-to-install-pip-on-windows/
+
+
+Python Virtual Environment
+
+```bash
+python3 -m venv graphfs-env
+source graphfs-evn/bin/activate
+```
+
 
 ```bash
 brew install libmagic
-uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+uvicorn main:app --host 0.0.0.0 --port 9000 --reload
 ```
+
+Build and run as a Docker image:
+
+```bash
+docker build -t graphfs .
+```
+
+```bash
+docker run -it --rm --name graphfssrv -p 127.0.0.1:9000:9000 graphfs
+```
+
 
 
 Neo4j Indexes
@@ -59,7 +130,7 @@ MATCH (f:Regular)-[:REFERENCES]-(fn:FileNode {mime:"text/x-Algol68"}) WITH f MAT
 
 List the number of file of each MIME type:
 
-```
+```sql
 MATCH (fn:FileNode) WITH DISTINCT fn.mime AS mime
 UNWIND mime AS m
 MATCH (fn:FileNode {mime: m})
@@ -74,6 +145,54 @@ MATCH (c:Container) WHERE c.simsearch IS NOT NULL OR (c)-[:SIMILAR_TO]->(:Contai
 MATCH (c:Container)-[:SIMILAR_TO]-(:Container) WITH Total, SimSearched, COUNT(DISTINCT c) AS Similar
 RETURN Total, SimSearched, round(100.0*SimSearched/Total,2) AS Progress, Similar, round(100.0*Similar/Total,2) AS Similarity
 ```
+
+Find Files that share Containers with the given File:
+
+```sql
+MATCH (f:Regular)-[:REFERENCES]->(fn:FileNode)-[s:STORED_IN]->(c:Container) WHERE elementId(f)="4:e7e7f16b-f67f-4cbe-900f-1aec09af7472:1352649" RETURN fn.sha256, COUNT(c)
+```
+
+```sql
+MATCH (fn:FileNode {sha256:"b8c56bbfe8ac994db94f5702b48beb9ca64f9d003785388f5dd23fc05d81c932"})-[s:STORED_IN]->(c:Container) WHERE s.idx IN range(0,255) WITH fn, c AS containers, s.idx AS i ORDER BY s.idx UNWIND containers AS c MATCH (c)<-[:STORED_IN]-(t:FileNode) WHERE fn<>t WITH i, c, COUNT(t) AS t WHERE t > 1 RETURN i, c.sha256, t
+```
+
+
+List N FileNodes that haven't been searched for similarity yet:
+
+```sql
+MATCH (fn:FileNode) WHERE fn.simsearch IS NULL AND NOT (fn)-[:SIMILAR_TO]-(:FileNode) WITH fn AS fnlist LIMIT 10
+UNWIND fnlist AS fn
+RETURN fn
+```
+
+
+Determine if all Containers of a given FileNode have been processed for similarity:
+
+```sql
+MATCH (fn:FileNode {sha256:"b8c56bbfe8ac994db94f5702b48beb9ca64f9d003785388f5dd23fc05d81c932"})-[:STORED_IN]->(c:Container) WITH fn, COUNT(c) AS total MATCH (fn)-[:STORED_IN]-(c:Container) WHERE c.simsearch IS NOT NULL OR (c)-[:SIMILAR_TO]-(:Container) RETURN fn.sha256, total, COUNT(c) AS processed
+```
+
+Example:
+
+```bash
+╒══════════════════════════════════════════════════════════════════╤═════╤═════════╕
+│fn.sha256                                                         │total│processed│
+╞══════════════════════════════════════════════════════════════════╪═════╪═════════╡
+│"b8c56bbfe8ac994db94f5702b48beb9ca64f9d003785388f5dd23fc05d81c932"│6076 │1948     │
+└──────────────────────────────────────────────────────────────────┴─────┴─────────┘
+```
+
+Select the first {n} FileNodes that haven't been searched for similarity yet but have all its Containers searched for similarity:
+
+```sql
+MATCH (fn:FileNode) WHERE fn.simsearch IS NULL AND NOT (fn)-[:SIMILAR_TO]-(:FileNode) WITH fn AS fnlist
+UNWIND fnlist AS fn
+MATCH (fn)-[:STORED_IN]->(c:Container) WHERE c.size=1024 WITH fn, COUNT(c) AS total
+MATCH (fn)-[:STORED_IN]-(c:Container) WHERE c.simsearch IS NOT NULL OR (c)-[:SIMILAR_TO]-(:Container)
+WITH fn, total, COUNT(c) AS processed WHERE total=processed
+RETURN fn.sha256 AS sha256, total, processed LIMIT {n}
+```
+
 
 
 
