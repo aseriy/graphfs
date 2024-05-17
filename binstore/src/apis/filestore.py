@@ -60,6 +60,16 @@ async def file_identical(path: str):
 
 
 
+@router.get("/similar/{path:path}", tags=["filestore"], status_code=200)
+async def file_similar(path: str):
+    print(f"path: {path}")
+
+    identical = fs.list_similar_files(PurePath(path))
+
+    return identical
+
+
+
 @router.post("/filestore/{path:path}", tags=["filestore"], status_code=200)
 async def file_upload(path: str, file: UploadFile = File(None)):
     print(f"path: {path}")
@@ -87,6 +97,8 @@ async def file_upload(path: str, file: UploadFile = File(None)):
     return None
 
 
+# TODO: Needs to be consolidated with the /filestore/{path:path} handler
+#
 @router.post("/filestore", tags=["filestore"], status_code=200)
 def file_upload(file: UploadFile = File(None)):
     print(f"file: {file.filename}")

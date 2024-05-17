@@ -22,6 +22,8 @@ store_cache_dir = 'cache'
 container_size = 1024
 container_chunking_batch_size = 1024
 DEFAULT_BATCH_SIZE = 5000
+minimum_filenode_intersection = 0.75
+filenode_similarity_search_container_range = 256
 
 
 class GraphStore():
@@ -462,6 +464,8 @@ class GraphStore():
                 RETURN r.idx as i, c
                 ORDER BY r.idx
                 '''
+            print("Cypher: ", q)
+
             result = s.run(q, sha256 = signature)
             for r in result:
                 print(r.get('i'), r.get('c'))
@@ -470,17 +474,21 @@ class GraphStore():
 
                 similar = None
 
-                if container.get('size') == container_size:
-                    similar = self.vs.find_similar(container.get('sha256'))
+                # TODO: At this point, similarity search has been moved to a separate
+                #       process. We may switch to reporting similarities or shared
+                #       Containers based on what's in the graph. This is faster!!!
+
+                # if container.get('size') == container_size:
+                #     similar = self.vs.find_similar(container.get('sha256'))
 
                 container_json = {
-                    'pos':      idx,
+                    'idx':      idx,
                     'sha256':   container.get('sha256'),
                     'size':     container.get('size')
                 }
 
-                if similar is not None:
-                    container_json['similar'] = similar
+                # if similar is not None:
+                #     container_json['similar'] = similar
 
                 json_out.append(container_json)
 
@@ -538,8 +546,6 @@ class GraphStore():
             s.close()
 
         return candidate
-
-
 
 
 
@@ -900,3 +906,120 @@ class GraphStore():
         return stats_json
 
 
+
+    def housekeep_filenode_similarity(self, batch_size=100):
+        candidates = []
+        
+        with self.graph.session() as s:
+            q = f'''MATCH (fn:FileNode) WHERE fn.simsearch IS NULL AND NOT (fn)-[:SIMILAR_TO]-(:FileNode) WITH fn AS fnlist
+                    UNWIND fnlist AS fn
+                    MATCH (fn)-[:STORED_IN]->(c:Container) WHERE c.size<=1024 WITH fn, COUNT(c) AS total
+                    MATCH (fn)-[:STORED_IN]-(c:Container) WHERE c.size<1024 OR c.simsearch IS NOT NULL OR (c)-[:SIMILAR_TO]-(:Container)
+                    WITH fn, total, COUNT(c) AS processed WHERE total=processed
+                    RETURN fn.sha256 AS sha256, fn.size AS size, total, processed LIMIT {batch_size}'''
+
+            print("Cypher: ", q)
+            
+            result = s.run(q)
+
+            for r in result:
+                candidates.append({
+                    "sha256":       r.get('sha256'),
+                    "size":         r.get('size'),
+                    "total":        r.get('total'),
+                    "processed":    r.get('processed')
+                })
+
+
+            s.close()
+
+            print(json.dumps(candidates, indent=2))
+
+            for c in candidates:
+                print("FileNode: ", c['sha256'])
+                self.find_similar_filenodes(c['sha256'])
+
+
+        print("PROCESSED: ", len(candidates))
+
+        return len(candidates)
+
+
+
+
+    def find_similar_filenodes(self, sha256: str):
+        """
+        Give the FileNode sha256, find Containers that potentially link to similar FileNodes.
+        size is the FileNode size to be used in calculating similarity.
+        c_total is the number of Containers for the FileNode which is useful to process
+        the Containers in batches when dealing with large FileNodes.
+        """
+
+        size, c_total = None, None
+
+        with self.graph.session() as s:
+            q = f'''MATCH (fn:FileNode {{sha256:"{sha256}"}})-[:STORED_IN]->(c:Container)
+                    RETURN fn.size AS size, COUNT(c) AS c_total'''
+
+            print("Cypher: ", q)
+            
+            result = s.run(q)
+            r = result.single()
+            size = r.get('size')
+            c_total = r.get('c_total')
+
+            s.close()
+
+        print("FileNode size: ", size)
+        print("Container(s): ", c_total)
+
+        container_intersect = {}
+
+        container_range_idx = 0
+        container_range = (
+            container_range_idx * filenode_similarity_search_container_range,
+            container_range_idx * filenode_similarity_search_container_range + filenode_similarity_search_container_range - 1
+        )
+
+        # TODO: Still need to implement this for FileNodes with more than 256 Containers
+        #
+        with self.graph.session() as s:
+            q = f'''MATCH (fn:FileNode {{sha256:"{sha256}"}})-[s:STORED_IN]->(c:Container)
+                    WHERE s.idx IN range({container_range[0]},{container_range[1]})
+                    WITH fn, c AS containers, s.idx AS idx ORDER BY idx
+                    UNWIND containers AS c
+                    MATCH (c)<-[:STORED_IN]-(t:FileNode) WHERE fn<>t
+                    WITH idx, c, COUNT(t) AS tc, COLLECT(t.sha256) AS twins WHERE tc > 1
+                    RETURN idx, c.sha256 AS sha256, c.size AS size, twins'''
+
+            print("Cypher: ", q)
+            
+            result = s.run(q)
+
+            for r in result:
+                idx = r.get('idx')
+                c_sha256 = r.get('sha256')
+                c_size = r.get('size')
+                twins = r.get('twins')
+
+                for t in twins:
+                    if not t in container_intersect:
+                        container_intersect[t] = 0
+
+                    container_intersect[t] += container_size
+
+
+            s.close()
+
+        # print(json.dumps(container_intersect, indent=2))
+
+        similar_fns = \
+            [c for c in container_intersect.keys() \
+                if container_intersect[c] > minimum_filenode_intersection * size]
+
+        if len(similar_fns):
+            print("Similar FileNode(s):")
+            print(json.dumps(similar_fns, indent=2))
+
+
+        return similar_fns

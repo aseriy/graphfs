@@ -3,17 +3,23 @@ from pathlib import PurePath
 import datetime
 import json
 import os
+from graphfs.graphstore import GraphStore
 
 
 class FileStore():
   def __init__(self, creds):
-      # bin_store_dir = creds['bin_store_dir']
-      # self.bin_store_perma_dir = os.path.join(bin_store_dir, store_perma_dir)
-      # self.bin_store_cache_dir = os.path.join(bin_store_dir, store_cache_dir)
       self.graph = \
           GraphDatabase.driver("bolt://" + creds['neo4j_url'] + ":7687",
                                   auth=(creds['neo4j_username'],
                                   creds['neo4j_password']))
+
+      self.binstore = GraphStore(creds)
+      
+
+
+  def __del__(self):
+      self.graph.close()
+
 
 
   def query_make_dir(self, path: PurePath):
@@ -122,11 +128,13 @@ class FileStore():
     print(json.dumps(file_path, indent=2))
     file_id = file_path['path'][-1]
 
-    q = f"""MATCH (f:Regular)-[:REFERENCES]->(fn:FileNode)<-[:REFERENCES]-(t:Regular)
+    q = f"""
+            MATCH (f:Regular)-[:REFERENCES]->(fn:FileNode)<-[:REFERENCES]-(t:Regular)
             WHERE elementId(f)="{file_id}" AND f<>t
             WITH COLLECT(t) AS twins UNWIND twins as t
             MATCH p=shortestPath((r:Root)-[:HARD_LINK*]-(t))
-            RETURN [n in nodes(p) | n.name] AS path ORDER BY path"""
+            RETURN [n in nodes(p) | n.name] AS path ORDER BY path
+        """
 
     print("Cypher: ", q)
 
@@ -142,6 +150,54 @@ class FileStore():
       print(json.dumps(identical_files, indent=2))
 
     return identical_files
+
+
+
+  def list_similar_files(self, path: str):
+    similar_files = []
+
+    file_path = self.find_path(path)
+    print(json.dumps(file_path, indent=2))
+    file_id = file_path['path'][-1]
+
+    q = f"""
+        MATCH (f:Regular)-[:REFERENCES]->(fn:FileNode)
+        WHERE elementId(f)="{file_id}"
+        RETURN fn.sha256 AS fn
+        """
+
+    print("Cypher: ", q)
+
+    with self.graph.session() as s:
+      result = s.run(q)
+      r = result.single()
+      fn_sha256 = r.get('fn')
+      s.close()
+
+    similar_fns = self.binstore.find_similar_filenodes(fn_sha256)
+
+    q = f"""
+        MATCH (f:Regular)-[:REFERENCES]->(fn:FileNode)
+        WHERE fn.sha256 IN {similar_fns}
+        WITH f, fn
+        MATCH p=shortestPath((r:Root)-[:HARD_LINK*]-(f:Regular))
+        RETURN [n in nodes(p) | n.name] AS path ORDER BY fn.sha256
+        """
+
+    print("Cypher: ", q)
+
+    with self.graph.session() as s:
+      result = s.run(q)
+      for r in result:
+        p = r.get('path')
+        p.pop(0)
+        similar_files.append(str(PurePath('/').joinpath(*p)))
+
+      s.close()
+
+    print(json.dumps(similar_files, indent=2))
+
+    return similar_files
 
 
 

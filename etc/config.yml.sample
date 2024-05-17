@@ -1,0 +1,11 @@
+environments:
+  DEV:
+    BINSTORE:
+      path: <data_dir>
+    NEO4J:
+      password: binstore
+      username: neo4j
+local_url: <ip_addr>
+milvus_url: <ip_addr>
+graphfs_host: localhost
+graphfs_port: 8080
