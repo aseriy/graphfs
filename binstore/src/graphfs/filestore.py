@@ -154,7 +154,7 @@ class FileStore():
 
 
   def list_similar_files(self, path: str):
-    similar_files = []
+    similar_files = {}
 
     file_path = self.find_path(path)
     print(json.dumps(file_path, indent=2))
@@ -176,24 +176,30 @@ class FileStore():
 
     similar_fns = self.binstore.find_similar_filenodes(fn_sha256)
 
-    q = f"""
-        MATCH (f:Regular)-[:REFERENCES]->(fn:FileNode)
-        WHERE fn.sha256 IN {similar_fns}
-        WITH f, fn
-        MATCH p=shortestPath((r:Root)-[:HARD_LINK*]-(f:Regular))
-        RETURN [n in nodes(p) | n.name] AS path ORDER BY fn.sha256
-        """
+    if len(similar_fns):
+      q = f"""
+          MATCH (f:Regular)-[:REFERENCES]->(fn:FileNode)
+          WHERE fn.sha256 IN {similar_fns}
+          WITH f, fn
+          MATCH p=shortestPath((r:Root)-[:HARD_LINK*]-(f:Regular))
+          RETURN fn.sha256 AS fn, [n in nodes(p) | n.name] AS path ORDER BY fn.sha256
+          """
 
-    print("Cypher: ", q)
+      print("Cypher: ", q)
 
-    with self.graph.session() as s:
-      result = s.run(q)
-      for r in result:
-        p = r.get('path')
-        p.pop(0)
-        similar_files.append(str(PurePath('/').joinpath(*p)))
+      with self.graph.session() as s:
+        result = s.run(q)
+        for r in result:
+          fn = r.get('fn')
+          p = r.get('path')
+          p.pop(0)
+          
+          if not fn in similar_files:
+            similar_files[fn] = []
+          
+          similar_files[fn].append(str(PurePath('/').joinpath(*p)))
 
-      s.close()
+        s.close()
 
     print(json.dumps(similar_files, indent=2))
 
