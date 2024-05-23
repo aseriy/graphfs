@@ -8,6 +8,8 @@ from fastapi import (
   Header, Request, HTTPException, Response,
   File, UploadFile
 )
+from fastapi_cache.decorator import cache
+
 from util.neo4j_helpers import get_credentials
 from graphfs.filestore import FileStore
 from graphfs.graphstore import GraphStore
@@ -36,6 +38,7 @@ router = APIRouter()
 
 @router.get("/filestore", tags=["filestore"], status_code=200)
 @router.get("/filestore/{path:path}", tags=["filestore"], status_code=200)
+@cache(expire=600)
 async def file_meta(path: str = None):
     print(f"path: {path}")
 
@@ -51,6 +54,7 @@ async def file_meta(path: str = None):
 
 
 @router.get("/identical/{path:path}", tags=["filestore"], status_code=200)
+@cache(expire=600)
 async def file_identical(path: str):
     print(f"path: {path}")
 
@@ -61,6 +65,7 @@ async def file_identical(path: str):
 
 
 @router.get("/similar/{path:path}", tags=["filestore"], status_code=200)
+@cache(expire=600)
 async def file_similar(path: str):
     print(f"path: {path}")
 

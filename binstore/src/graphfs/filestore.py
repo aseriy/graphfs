@@ -4,6 +4,7 @@ import datetime
 import json
 import os
 from graphfs.graphstore import GraphStore
+import concurrent.futures
 
 
 class FileStore():
@@ -238,6 +239,11 @@ class FileStore():
 
     if len(children):
       listing['children'] = []
+
+      just_file_children = []
+      just_files = []
+
+      # First let's grab just the directories
       for child in children:
         if 'Directory' in child.labels:
           listing['children'].append({
@@ -245,10 +251,19 @@ class FileStore():
               "basename": child.get('name')
             }
           )
-          # listing['children'].append(self.query_list_directory(child.element_id))
-
+        
         else:
-          listing['children'].append(self.query_list_file(child.element_id))
+          just_file_children.append(child.element_id)
+
+
+      cpu_cores = os.cpu_count()
+      print(f"Using {cpu_cores} threads...")
+
+      with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_cores) as executor:
+        just_files = executor.map(self.query_list_file, just_file_children)
+        executor.shutdown(wait=True)
+
+      listing['children'].extend(list(just_files))
 
       # Sort children by name
       listing['children'] = sorted(listing['children'], key=lambda c: c['basename'])
