@@ -97,6 +97,13 @@ CREATE INDEX FOR (c:Container) ON c.sha256
 CREATE INDEX FOR (c:Container) ON c.size
 CREATE INDEX FOR (f:Regular) ON f.name
 CREATE INDEX FOR (d:Directory) ON d.name
+CREATE INDEX FOR ()-[s:STORED_IN]-() ON s.idx
+```
+
+Cypher to check memory usage:
+
+```cypher
+
 ```
 
 

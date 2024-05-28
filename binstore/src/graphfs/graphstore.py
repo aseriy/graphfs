@@ -12,6 +12,7 @@ from util.neo4j_helpers import get_credentials, get_node_ids_by_label_name
 import detools
 import io
 from graphfs.vectorstore import VectorStore
+import concurrent.futures
 
 
 store_perma_dir = 'perma'
@@ -44,9 +45,15 @@ class GraphStore():
         
         self.vs = VectorStore(creds)
 
+        cpu_cores = int(0.5 + 0.75 * os.cpu_count())
+        print(f"Using {cpu_cores} threads...")
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers = cpu_cores)
+
+
 
 
     def __del__(self):
+        self.executor.shutdown(wait=True)
         self.graph.close()
 
 
@@ -946,6 +953,70 @@ class GraphStore():
 
 
 
+    def find_containers_intersect(self, sha256: str, idx: (int, int), fn_size: int) -> dict:
+        # Initialize the structure that will be returned at the end
+        container_intersect = {}
+
+        # STEP 1
+        # For each Container in the range,
+        # how many other FileNodes store in the same Container.
+        #
+        twin_filenode_counts = {}
+        with self.graph.session() as s:
+            q = f'''MATCH (fn:FileNode {{sha256:"{sha256}"}})-[s:STORED_IN]->(c:Container)
+                    WHERE s.idx IN range({idx[0]},{idx[1]})
+                    WITH fn, s.idx AS idx, c AS containers
+                    UNWIND containers AS c
+                    MATCH (c)<-[:STORED_IN]-(t:FileNode) WHERE fn<>t
+                    AND {int(0.5 + (fn_size * minimum_filenode_intersection))} <= t.size
+                    AND t.size <= {int(0.5 + (fn_size * (2 - minimum_filenode_intersection)))}
+                    RETURN idx, c.sha256 AS container, COUNT(t) AS tc ORDER BY idx'''
+
+            print("Cypher: ", q)
+            
+            result = s.run(q)
+
+            for r in result:
+                c_idx = r.get('idx')
+                c_sha256 = r.get('container')
+                twin_count = r.get('tc')
+                twin_filenode_counts[c_sha256] = twin_count
+
+            s.close()
+
+        print(idx, json.dumps(twin_filenode_counts, indent=2))
+
+
+        # STEP 2
+        # 
+
+        # with self.graph.session() as s:
+        #     q = f'''MATCH (c:Container {{sha256:"{sha256}"}})<-[s:STORED_IN]-(fn:FileNode)
+        #             WHERE fn.sha256 <> "ff5da9779f55390b4c69847407d74d4436067703a0a8a35865500831044c1b6f"
+        #             AND fn.size >= 4665641 AND fn.size <= 7776068
+        #             RETURN fn.sha256 AS fn, s.idx AS idx, c.size AS size ORDER BY fn, idx'''
+
+        #     s.close()
+
+
+        return container_intersect
+
+
+
+    def merge_container_intersect(self, a: dict, b:dict, range: ()) -> dict:
+        # print(json.dumps(b, indent=2))
+
+        for k,v in b.items():
+            if k in a:
+                a[k] += v
+            else:
+                a[k] = v
+
+        # print(json.dumps(a, indent=2))
+        print(f"{range} Intersection FileNodes: {len(a.keys())}")
+
+
+
 
     def find_similar_filenodes(self, sha256: str):
         """
@@ -975,43 +1046,32 @@ class GraphStore():
 
         container_intersect = {}
 
-        container_range_idx = 0
-        container_range = (
-            container_range_idx * filenode_similarity_search_container_range,
-            container_range_idx * filenode_similarity_search_container_range + filenode_similarity_search_container_range - 1
-        )
+        container_ranges = []
+        container_range_bottom = 0
+        while container_range_bottom < c_total:
+            container_ranges.append((
+                container_range_bottom,
+                container_range_bottom + filenode_similarity_search_container_range - 1
+            ))
+            container_range_bottom += filenode_similarity_search_container_range
 
-        # TODO: Still need to implement this for FileNodes with more than 256 Containers
-        #
-        with self.graph.session() as s:
-            q = f'''MATCH (fn:FileNode {{sha256:"{sha256}"}})-[s:STORED_IN]->(c:Container)
-                    WHERE s.idx IN range({container_range[0]},{container_range[1]})
-                    WITH fn, c AS containers, s.idx AS idx ORDER BY idx
-                    UNWIND containers AS c
-                    MATCH (c)<-[:STORED_IN]-(t:FileNode) WHERE fn<>t
-                    WITH idx, c, COUNT(t) AS tc, COLLECT(t.sha256) AS twins WHERE tc > 1
-                    RETURN idx, c.sha256 AS sha256, c.size AS size, twins'''
+        print(json.dumps(container_ranges, indent=2))
 
-            print("Cypher: ", q)
-            
-            result = s.run(q)
+        cpu_cores = int(0.25 * os.cpu_count())
+        print(f"Using {cpu_cores} threads...")
 
-            for r in result:
-                idx = r.get('idx')
-                c_sha256 = r.get('sha256')
-                c_size = r.get('size')
-                twins = r.get('twins')
+        range_tracker = {}
+        for range in container_ranges:
+            f = self.executor.submit(
+                self.find_containers_intersect,
+                sha256, range, size
+            )
+            range_tracker[f] = range
 
-                for t in twins:
-                    if not t in container_intersect:
-                        container_intersect[t] = 0
+        for f in concurrent.futures.as_completed(range_tracker.keys()):
+            self.merge_container_intersect(container_intersect, f.result(), range_tracker[f])
 
-                    container_intersect[t] += container_size
-
-
-            s.close()
-
-        # print(json.dumps(container_intersect, indent=2))
+        print("FINAL: ", json.dumps(container_intersect, indent=2))
 
         similar_fns = \
             [c for c in container_intersect.keys() \

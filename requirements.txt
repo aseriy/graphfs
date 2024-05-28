@@ -47,7 +47,7 @@ lz4==4.3.3
 marshmallow==3.21.1
 minio==7.2.5
 multidict==6.0.5
-neo4j==5.18.0
+neo4j>=5.2.1, ==5.*
 numpy==1.26.4
 packaging==24.0
 pandas==2.2.1

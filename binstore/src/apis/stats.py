@@ -20,7 +20,7 @@ router = APIRouter()
 
 
 @router.get("/stats", tags=["stats"], status_code=200)
-async def info():
+def info():
     json_resp = {
         "fs": bs.stats_file_system(),
         "store": bs.stats_data_store()

@@ -256,7 +256,7 @@ class FileStore():
           just_file_children.append(child.element_id)
 
 
-      cpu_cores = os.cpu_count()
+      cpu_cores = int(0.5 + 0.5 * os.cpu_count())
       print(f"Using {cpu_cores} threads...")
 
       with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_cores) as executor:
