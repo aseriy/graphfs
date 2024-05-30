@@ -201,6 +201,17 @@ RETURN fn.sha256 AS sha256, total, processed LIMIT {n}
 ```
 
 
+For a given FileNode, find all other FileNodes that share Containers with it:
+
+```sql
+MATCH (fn1:FileNode {sha256:"ff5da9779f55390b4c69847407d74d4436067703a0a8a35865500831044c1b6f"})-[s1:STORED_IN]->(c:Container)<-[:STORED_IN]-(fn2:FileNode {sha256:"a8b24184cb44357671c072be7d64bd260d6e2f683665b4d45417664e44aee724"}) WITH DISTINCT fn1, fn2, s1.idx AS idx, c.sha256 AS c, c.size AS size ORDER BY idx RETURN fn1.size, SUM(size), fn2.size
+```
+
+Then, we can find how many bytes, therefore percent, each FileNode pair have in common:
+
+```sql
+MATCH (fn1:FileNode {sha256:"ff5da9779f55390b4c69847407d74d4436067703a0a8a35865500831044c1b6f"})-[:STORED_IN]->(c:Container)<-[:STORED_IN]-(fn2:FileNode) WHERE fn1<>fn2 RETURN DISTINCT fn2.sha256
+```
 
 
 Recommended Neo4j memory config:

@@ -915,41 +915,36 @@ class GraphStore():
 
 
     def housekeep_filenode_similarity(self, batch_size=100):
-        candidates = []
-        
-        with self.graph.session() as s:
-            q = f'''MATCH (fn:FileNode) WHERE fn.simsearch IS NULL AND NOT (fn)-[:SIMILAR_TO]-(:FileNode) WITH fn AS fnlist
-                    UNWIND fnlist AS fn
-                    MATCH (fn)-[:STORED_IN]->(c:Container) WHERE c.size<=1024 WITH fn, COUNT(c) AS total
-                    MATCH (fn)-[:STORED_IN]-(c:Container) WHERE c.size<1024 OR c.simsearch IS NOT NULL OR (c)-[:SIMILAR_TO]-(:Container)
-                    WITH fn, total, COUNT(c) AS processed WHERE total=processed
-                    RETURN fn.sha256 AS sha256, fn.size AS size, total, processed LIMIT {batch_size}'''
+        total_processed = 0
 
-            print("Cypher: ", q)
-            
-            result = s.run(q)
+        last_batch_size = batch_size
 
-            for r in result:
-                candidates.append({
-                    "sha256":       r.get('sha256'),
-                    "size":         r.get('size'),
-                    "total":        r.get('total'),
-                    "processed":    r.get('processed')
-                })
+        if last_batch_size > 0:
+            with self.graph.session() as s:
+                q = f'''
+                    MATCH (fn:FileNode)-[:STORED_IN {{idx:0}}]->(c:Container) WHERE c.size > {container_size}
+                    RETURN DISTINCT fn.sha256 as fn LIMIT {batch_size}
+                    '''
+                    
+                print(q)
+                result = s.run(q)
+                print(result)
+                to_process_list = result.fetch(batch_size)
+                last_batch_size = len(to_process_list)
 
+                # for r in to_containerize_list:
+                #     fn = r.get("fn")
+                #     print(f"Containerizing FileNode: {fn}")
+                #     self.containerize_node(fn)
 
-            s.close()
-
-            print(json.dumps(candidates, indent=2))
-
-            for c in candidates:
-                print("FileNode: ", c['sha256'])
-                self.find_similar_filenodes(c['sha256'])
+                # print(last_batch_size)
+                total_processed += last_batch_size
+                s.close()
 
 
-        print("PROCESSED: ", len(candidates))
+        print("TOTAL PROCESSED: ", total_processed)
 
-        return len(candidates)
+        return total_processed
 
 
 
@@ -1044,32 +1039,53 @@ class GraphStore():
         print("FileNode size: ", size)
         print("Container(s): ", c_total)
 
+        #
+        # EXPERIMENTAL
+        #
+        similar_fns = []
+        with self.graph.session() as s:
+            q = f'''MATCH (fn1:FileNode {{sha256:"{sha256}"}})
+                    -[:STORED_IN]->(c:Container)<-[:STORED_IN]-
+                    (fn2:FileNode) WHERE fn1<>fn2
+                    RETURN DISTINCT fn2.sha256 AS similar
+                    SKIP 0 LIMIT 1000'''
+
+            print("Cypher: ", q)
+            
+            result = s.run(q)
+            similar_fns = [r.get('similar') for r in result]
+
+            s.close()
+
+        print(json.dumps(similar_fns, indent=2))
+        #
+        # End of EXPERIMENTAL
+        #
+
+
         container_intersect = {}
 
-        container_ranges = []
-        container_range_bottom = 0
-        while container_range_bottom < c_total:
-            container_ranges.append((
-                container_range_bottom,
-                container_range_bottom + filenode_similarity_search_container_range - 1
-            ))
-            container_range_bottom += filenode_similarity_search_container_range
+        # container_ranges = []
+        # container_range_bottom = 0
+        # while container_range_bottom < c_total:
+        #     container_ranges.append((
+        #         container_range_bottom,
+        #         container_range_bottom + filenode_similarity_search_container_range - 1
+        #     ))
+        #     container_range_bottom += filenode_similarity_search_container_range
 
-        print(json.dumps(container_ranges, indent=2))
+        # print(json.dumps(container_ranges, indent=2))
 
-        cpu_cores = int(0.25 * os.cpu_count())
-        print(f"Using {cpu_cores} threads...")
+        # range_tracker = {}
+        # for range in container_ranges:
+        #     f = self.executor.submit(
+        #         self.find_containers_intersect,
+        #         sha256, range, size
+        #     )
+        #     range_tracker[f] = range
 
-        range_tracker = {}
-        for range in container_ranges:
-            f = self.executor.submit(
-                self.find_containers_intersect,
-                sha256, range, size
-            )
-            range_tracker[f] = range
-
-        for f in concurrent.futures.as_completed(range_tracker.keys()):
-            self.merge_container_intersect(container_intersect, f.result(), range_tracker[f])
+        # for f in concurrent.futures.as_completed(range_tracker.keys()):
+        #     self.merge_container_intersect(container_intersect, f.result(), range_tracker[f])
 
         print("FINAL: ", json.dumps(container_intersect, indent=2))
 
