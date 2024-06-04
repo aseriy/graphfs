@@ -13,6 +13,7 @@ import detools
 import io
 from graphfs.vectorstore import VectorStore
 import concurrent.futures
+import difflib
 
 
 store_perma_dir = 'perma'
@@ -948,51 +949,40 @@ class GraphStore():
 
 
 
-    def find_containers_intersect(self, sha256: str, idx: (int, int), fn_size: int) -> dict:
+    def find_containers_intersect(self, fn1: str, fn2: str) -> dict:
         # Initialize the structure that will be returned at the end
         container_intersect = {}
 
-        # STEP 1
-        # For each Container in the range,
-        # how many other FileNodes store in the same Container.
-        #
-        twin_filenode_counts = {}
+        size1, size2, intersection1, intersection2 = None, None, None, None
+
+        q0 = f'''MATCH (fn1:FileNode {{sha256:"{fn1}"}})-[s1:STORED_IN]->
+                (c:Container)<-[s2:STORED_IN]-
+                (fn2:FileNode {{sha256:"{fn2}"}})
+                WITH DISTINCT fn1.size AS fn1, s1.idx AS s1, c.size AS size, s2.idx AS s2, fn2.size AS fn2
+                ORDER BY s1, s2'''
+
+        q1 = '''WITH DISTINCT fn1 AS fn1, s1 AS s1, size AS intersect
+                RETURN fn1, sum(intersect) AS intersection1'''
+
+        q2 = '''WITH DISTINCT fn2 AS fn2, s2 AS s2, size AS intersect
+                RETURN fn2, sum(intersect) AS intersection2'''
+
         with self.graph.session() as s:
-            q = f'''MATCH (fn:FileNode {{sha256:"{sha256}"}})-[s:STORED_IN]->(c:Container)
-                    WHERE s.idx IN range({idx[0]},{idx[1]})
-                    WITH fn, s.idx AS idx, c AS containers
-                    UNWIND containers AS c
-                    MATCH (c)<-[:STORED_IN]-(t:FileNode) WHERE fn<>t
-                    AND {int(0.5 + (fn_size * minimum_filenode_intersection))} <= t.size
-                    AND t.size <= {int(0.5 + (fn_size * (2 - minimum_filenode_intersection)))}
-                    RETURN idx, c.sha256 AS container, COUNT(t) AS tc ORDER BY idx'''
+            q = f'''{q0}
+                    {q1}'''
 
             print("Cypher: ", q)
             
             result = s.run(q)
+            r = result.single()
 
-            for r in result:
-                c_idx = r.get('idx')
-                c_sha256 = r.get('container')
-                twin_count = r.get('tc')
-                twin_filenode_counts[c_sha256] = twin_count
+            size1 = r.get('fn1')
+            intersection1 = r.get('intersection1')
 
             s.close()
 
-        print(idx, json.dumps(twin_filenode_counts, indent=2))
-
-
-        # STEP 2
-        # 
-
-        # with self.graph.session() as s:
-        #     q = f'''MATCH (c:Container {{sha256:"{sha256}"}})<-[s:STORED_IN]-(fn:FileNode)
-        #             WHERE fn.sha256 <> "ff5da9779f55390b4c69847407d74d4436067703a0a8a35865500831044c1b6f"
-        #             AND fn.size >= 4665641 AND fn.size <= 7776068
-        #             RETURN fn.sha256 AS fn, s.idx AS idx, c.size AS size ORDER BY fn, idx'''
-
-        #     s.close()
-
+        print(f"{fn1}: {size1:>12,d}")
+        print("INTERSECTION".ljust(63), f": {intersection1:>12,d}")
 
         return container_intersect
 
@@ -1011,6 +1001,45 @@ class GraphStore():
         print(f"{range} Intersection FileNodes: {len(a.keys())}")
 
 
+    def compare_filenode_blueprints(self, fn1: str, fn2: str):
+
+
+
+        return None
+
+
+    def filenode_blueprint(self, fn: str) -> str:
+        idx_offset = 0
+        batch_size = 1000
+        done = False
+
+        blueprint = []
+
+        while done is False:
+            blueprint_batch = []
+            with self.graph.session() as s:
+                q = f'''MATCH (fn1:FileNode {{sha256:"{fn}"}})-[s:STORED_IN]->(c:Container)
+                        RETURN c.sha256 AS c ORDER BY s.idx SKIP {idx_offset} LIMIT {batch_size}'''
+
+                print("Cypher: ", q)
+                
+                result = s.run(q)
+                for r in result:
+                    container = r.get('c')
+                    blueprint_batch.append(f"{container}")
+        
+                s.close()
+
+            blueprint.extend(blueprint_batch)
+
+            if len(blueprint_batch) < batch_size:
+                done = True
+            else:
+                idx_offset += batch_size
+
+
+        return blueprint
+
 
 
     def find_similar_filenodes(self, sha256: str):
@@ -1021,28 +1050,31 @@ class GraphStore():
         the Containers in batches when dealing with large FileNodes.
         """
 
-        size, c_total = None, None
+        # size, c_total = None, None
 
-        with self.graph.session() as s:
-            q = f'''MATCH (fn:FileNode {{sha256:"{sha256}"}})-[:STORED_IN]->(c:Container)
-                    RETURN fn.size AS size, COUNT(c) AS c_total'''
+        # with self.graph.session() as s:
+        #     q = f'''MATCH (fn:FileNode {{sha256:"{sha256}"}})-[:STORED_IN]->(c:Container)
+        #             RETURN fn.size AS size, COUNT(c) AS c_total'''
 
-            print("Cypher: ", q)
+        #     print("Cypher: ", q)
             
-            result = s.run(q)
-            r = result.single()
-            size = r.get('size')
-            c_total = r.get('c_total')
+        #     result = s.run(q)
+        #     r = result.single()
+        #     size = r.get('size')
+        #     c_total = r.get('c_total')
 
-            s.close()
+        #     s.close()
 
-        print("FileNode size: ", size)
-        print("Container(s): ", c_total)
+        # print("FileNode size: ", size)
+        # print("Container(s): ", c_total)
 
         #
         # EXPERIMENTAL
         #
-        similar_fns = []
+        similar_fns = {}
+        candidate_fns = []
+        sm = difflib.SequenceMatcher()
+
         with self.graph.session() as s:
             q = f'''MATCH (fn1:FileNode {{sha256:"{sha256}"}})
                     -[:STORED_IN]->(c:Container)<-[:STORED_IN]-
@@ -1053,17 +1085,61 @@ class GraphStore():
             print("Cypher: ", q)
             
             result = s.run(q)
-            similar_fns = [r.get('similar') for r in result]
+            candidate_fns = [r.get('similar') for r in result]
 
             s.close()
 
-        print(json.dumps(similar_fns, indent=2))
+        # with self.graph.session() as s:
+        #     q = f'''MATCH (fn1:FileNode {{sha256:"{sha256}"}})
+        #             -[:STORED_IN]->(c1:Container)
+        #             WHERE (c1)-[:SIMILAR_TO]-(:Container)
+        #             WITH fn1, c1 MATCH (c1)-[:SIMILAR_TO]-(c2:Container)--(fn2:FileNode)
+        #             RETURN DISTINCT fn2.sha256 AS similar
+        #             SKIP 0 LIMIT 1000'''
+
+        #     print("Cypher: ", q)
+            
+        #     result = s.run(q)
+        #     candidate_fns.extend([r.get('similar') for r in result])
+
+        #     s.close()
+
+        print(json.dumps(candidate_fns, indent=2))
+
+        fn_left = self.filenode_blueprint(sha256)
+        # print(json.dumps(fn_left, indent=2))
+        sm.set_seq1(fn_left)
+
+
+        for fn in candidate_fns:
+            fn_right = self.filenode_blueprint(fn)
+            # print(json.dumps(fn_right, indent=2))
+            sm.set_seq2(fn_right)
+            mb = sm.get_matching_blocks()
+            # op_codes = sm.get_opcodes()
+            ratio = sm.ratio()
+            # sys.stdout.writelines(context_diff(fn_left, fn_right))
+            print("Matching Sequences:")
+            for m in mb:
+                print(m)
+            # print("OpCodes:")
+            # for opc in op_codes:
+            #     print(opc)
+            print("Ratio: ", ratio)
+            print()
+
+            if not ratio < 0.5:
+                similar_fns[fn] = list(mb)
+
+        # print("SIMILAR:")
+        # print(json.dumps(list(similar_fns.keys()), indent=2))
+
         #
         # End of EXPERIMENTAL
         #
 
 
-        container_intersect = {}
+        # container_intersect = {}
 
         # container_ranges = []
         # container_range_bottom = 0
@@ -1087,15 +1163,15 @@ class GraphStore():
         # for f in concurrent.futures.as_completed(range_tracker.keys()):
         #     self.merge_container_intersect(container_intersect, f.result(), range_tracker[f])
 
-        print("FINAL: ", json.dumps(container_intersect, indent=2))
+        # print("FINAL: ", json.dumps(container_intersect, indent=2))
 
-        similar_fns = \
-            [c for c in container_intersect.keys() \
-                if container_intersect[c] > minimum_filenode_intersection * size]
+        # similar_fns = \
+        #     [c for c in container_intersect.keys() \
+        #         if container_intersect[c] > minimum_filenode_intersection * size]
 
-        if len(similar_fns):
+        if len(list(similar_fns.keys())):
             print("Similar FileNode(s):")
-            print(json.dumps(similar_fns, indent=2))
+            print(json.dumps(list(similar_fns.keys()), indent=2))
 
 
-        return similar_fns
+        return list(similar_fns.keys())

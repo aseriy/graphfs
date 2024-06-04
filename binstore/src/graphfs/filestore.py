@@ -154,8 +154,8 @@ class FileStore():
 
 
 
-  def list_similar_files(self, path: str):
-    similar_files = {}
+  def path_to_filenode(self, path:str) -> str|None:
+    fn_sha256 = None
 
     file_path = self.find_path(path)
     print(json.dumps(file_path, indent=2))
@@ -174,6 +174,15 @@ class FileStore():
       r = result.single()
       fn_sha256 = r.get('fn')
       s.close()
+
+    return fn_sha256
+
+
+
+  def list_similar_files(self, path: str):
+    similar_files = {}
+
+    fn_sha256 = self.path_to_filenode(PurePath(path))
 
     similar_fns = self.binstore.find_similar_filenodes(fn_sha256)
 
