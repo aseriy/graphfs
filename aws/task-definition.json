@@ -205,7 +205,7 @@
       },
       {
           "name": "milvus-standalone",
-          "image": "905418022626.dkr.ecr.us-east-1.amazonaws.com/milvus:v2.3.3-graphfs",
+          "image": "905418022626.dkr.ecr.us-east-1.amazonaws.com/milvus:v2.3.3",
           "cpu": 0,
           "portMappings": [
               {

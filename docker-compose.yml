@@ -1,31 +1,9 @@
-version: '1.0'
-
-
-networks:
-  default:
-    name: net_graphfs
-  milvus:
-    name: net_milvus
-
+version: '3.5'
 
 services:
-  # docker run -d --name neo4j --publish=7474:7474 --publish=7687:7687 --volume=$HOME/git/binstore/neo4j-data:/data neo4j
-  neo4j:
-    container_name: neo4j
-    image: neo4j
-    ports:
-      - "7474:7474"
-      - "7687:7687"
-    volumes:
-      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j/data:/data
-      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j/logs:/logs
-    command: neo4j
-
   etcd:
     container_name: milvus-etcd
-    image: quay.io/coreos/etcd:v3.5.5
-    networks:
-      - milvus
+    image: quay.io/coreos/etcd:v3.5.18
     environment:
       - ETCD_AUTO_COMPACTION_MODE=revision
       - ETCD_AUTO_COMPACTION_RETENTION=1000
@@ -42,12 +20,10 @@ services:
 
   minio:
     container_name: milvus-minio
-    image: minio/minio:RELEASE.2024-02-17T01-15-57Z
-    networks:
-      - milvus
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
     ports:
       - "9001:9001"
       - "9000:9000"
@@ -55,19 +31,17 @@ services:
       - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/minio:/minio_data
     command: minio server /minio_data --console-address ":9001"
     healthcheck:
-      test: ["CMD", "timeout", "5s", "bash", "-c", ":> /dev/tcp/127.0.0.1/9000", "||", "exit", "1"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
       timeout: 20s
       retries: 3
 
   standalone:
     container_name: milvus-standalone
-    image: milvusdb/milvus:2.4-latest
-    networks:
-      - milvus
+    image: milvusdb/milvus:v2.4.23
     command: ["milvus", "run", "standalone"]
     security_opt:
-      - seccomp:unconfined
+    - seccomp:unconfined
     environment:
       ETCD_ENDPOINTS: etcd:2379
       MINIO_ADDRESS: minio:9000
@@ -86,13 +60,6 @@ services:
       - "etcd"
       - "minio"
 
-  attu:
-    container_name: attu
-    image: zilliz/attu:v2.3.1
-    ports:
-      - "8300:3000"
-    environment:
-      - MILVUS_URL=http://standalone:19530
-    depends_on:
-      - standalone
-
+networks:
+  default:
+    name: milvus
